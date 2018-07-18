@@ -139,7 +139,7 @@ function randomFunction
     return {payload: 'RANDOM $seed'};
  }
 EOF
-  wskCli -u $auth create $seed $file > /dev/null
+  wskCli -u $auth action create $seed $file > /dev/null
   if [ $? -eq 0 ]; then
 		echo $seed
 	fi
