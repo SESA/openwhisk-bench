@@ -119,11 +119,16 @@ function countStarts
   echo -e "warm:\t\t" $( showStarts warm | wc -l )
 }
 
+function createUser
+{
+	seed=user_$1
+	echo -n $seed ""
+	wskAdmin user create $seed
+}
+
 function randomUser
 {
-	seed=user_$RANDOM
-	echo -n $seed "" 
-  wskAdmin user create $seed 
+	createUser $RANDOM
 }
 
 function randomFunction
@@ -163,7 +168,7 @@ function getInvokeTime
 	init_t=0
 	wait_t=0
 	run_t=0
-  OUTPUT=$(bash -c "$WSKCLI -i action invoke -b $@ | tail -n +2")
+  OUTPUT=$(bash -c "$WSKCLI -i  --apihost $WSKHOST action invoke -b $@ | tail -n +2")
 	len=$(echo $OUTPUT | jq -r '.annotations | length') 
 	run_t=$( echo $OUTPUT | jq -r '.duration' )
 	if [[ $len -eq 4 ]]; then # WARM/HOT START 
