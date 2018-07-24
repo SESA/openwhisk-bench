@@ -24,7 +24,8 @@ export WSKADMIN=${WSK_ADMIN:=wskadmin}
 export WSKLOG=${WSK_INVOKER_LOG:=/tmp/wsklogs/invoker0/invoker0_logs.log}
 export TMPDIR=${TMP_DIR:=/tmp}
 export WSKUSER=${WSK_USER:=guest} 
-export WSKAUTH=${WSK_AUTH:=23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP} 
+export WSKAUTH=${WSK_AUTH:=23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP}
+export WSKHOST=${WSK_HOST:=172.17.0.1:443} 
 export DEBUG=${DEBUG:=}
 export CLEAR=${CLEAR:=}
 export COUNT=${COUNT:=}
@@ -64,7 +65,7 @@ usage()
 # Wrapper around the wsk command
 function wskCli
 {
-  cmd="$WSKCLI -i $@"
+  cmd="$WSKCLI -i --apihost $WSKHOST $@"
   bash -c "$cmd"
 }
 
@@ -130,7 +131,7 @@ function randomFunction
 	local auth=$1
 	if [ -z "$auth" ]; then
 		auth=$WSKAUTH
-	fi 
+	fi
 	seed=$RANDOM
 	file="$TMPDIR/wsk_func_$RANDOM.js"
 	touch $file
