@@ -122,8 +122,11 @@ function countStarts
 function createUser
 {
 	seed=user_$1
-	echo -n $seed ""
-	wskAdmin user create $seed
+	output=`wskAdmin user create $seed`
+	if [ "$output" = "Namespace already exists" ]; then
+		output=`getUserAuth $seed`
+	fi;
+	echo $seed $output
 }
 
 function randomUser
