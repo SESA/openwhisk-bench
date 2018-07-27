@@ -121,11 +121,18 @@ function countStarts
 
 function createUser
 {
-	seed=user_$1
+    if [[ $1 != user* ]]; then
+	    seed=user_$1
+	else
+	    seed=$1
+	fi;
+
 	output=`wskAdmin user create $seed`
+
 	if [ "$output" = "Namespace already exists" ]; then
 		output=`getUserAuth $seed`
 	fi;
+
 	echo $seed $output
 }
 
@@ -134,13 +141,14 @@ function randomUser
 	createUser $RANDOM
 }
 
-function randomFunction
+function createFunction
 {
-	local auth=$1
+    local auth=$1
 	if [ -z "$auth" ]; then
 		auth=$WSKAUTH
 	fi
-	seed=$RANDOM
+
+	seed=$2
 	file="$TMPDIR/wsk_func_$RANDOM.js"
 	touch $file
   cat << EOF >> $file
@@ -155,12 +163,17 @@ EOF
 	rm $file
 }
 
+function randomFunction
+{
+	createFunction $RANDOM
+}
+
 function getUserAuth {
 	local user=$1
 	if [ -z "$user" ]; then
 		user=$WSKUSER
 	fi 
-	echo -n $( wskAdmin user get $user ) 
+	echo $( wskAdmin user get $user )
 }
 
 # getInvokeTime 
@@ -183,14 +196,20 @@ function getInvokeTime
 	echo $wait_t $init_t $run_t 
 }
 
-# invokeFunction <function> <user>
 function invokeFunction {
+    local function=$1
+	local userAuth=$2
+    getInvokeTime "-u \"$userAuth\" $function"
+}
+
+function getAuthAndInvokeFunction {
 	local function=$1
 	local user=$2
 	if [ -z "$user" ]; then
 		user=$WSKUSER
-	fi 
-  getInvokeTime "-u $( getUserAuth $user ) $function"
+	fi
+
+	invokeFunctionWithAuth $function "$( getUserAuth $user)"
 }
 
 #################################################### 
