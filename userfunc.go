@@ -6,9 +6,9 @@ import (
 )
 
 type UserFuncs struct {
-	Time int
-	UserID string
-	FunctionID int
+	Time               int
+	UserID             string
+	FunctionID         int
 	NoOfTimesToExecute int
 }
 
@@ -21,10 +21,10 @@ func createUserFuncsObj(contents []string) UserFuncs {
 		panic(fmt.Errorf("Invalid Content Length - %d", len(contents)))
 	}
 
-	return UserFuncs {
-		Time: getIntFromStr(contents[0]),
-		UserID: "user_" + contents[1],
-		FunctionID: getIntFromStr(contents[2]),
+	return UserFuncs{
+		Time:               getIntFromStr(contents[0]),
+		UserID:             "user_" + contents[1],
+		FunctionID:         getIntFromStr(contents[2]),
 		NoOfTimesToExecute: getIntFromStr(contents[3]),
-		}
+	}
 }
