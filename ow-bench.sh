@@ -2,7 +2,7 @@
 #
 #  Benchmarking & experimentation tool for Apache OpenWhisk
 #
-#  This files provides a collectiion of helper scripts for interacting 
+#  This files provides a collectiion of helper scripts for interacting
 #	   with a configured OpenWhisk deployment.
 #
 #  This script requies the `wsk` and `wskadmin` binaries defined in your PATH:
@@ -11,33 +11,33 @@
 #
 #  The following utilities are also required: bc, jq
 #
-#	 USAGE: ow-bench.sh cmd args 
+#	 USAGE: ow-bench.sh cmd args
 #
 #  The following arguments can be used on any command:
-#			COUNT = amount of repete cmds to run 
+#			COUNT = amount of repete cmds to run
 #			DELAY = time to sleep between runs (poll if DELAY is set but COUNT is not)
 #			CLEAR = clear the screen between runs
-#			DEBUG = print full commands 
+#			DEBUG = print full commands
 
 export WSKCLI=${WSK_CLI:=wsk}
 export WSKADMIN=${WSK_ADMIN:=wskadmin}
 export WSKLOG=${WSK_INVOKER_LOG:=/tmp/wsklogs/invoker0/invoker0_logs.log}
 export TMPDIR=${TMP_DIR:=/tmp}
-export WSKUSER=${WSK_USER:=guest} 
+export WSKUSER=${WSK_USER:=guest}
 export WSKAUTH=${WSK_AUTH:=23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP}
-export WSKHOST=${WSK_HOST:=172.17.0.1:443} 
+export WSKHOST=${WSK_HOST:=172.17.0.1:443}
 export DEBUG=${DEBUG:=}
 export CLEAR=${CLEAR:=}
 export COUNT=${COUNT:=}
 export WAIT=${WAIT:=}
-if [[ -n $DEBUG ]]; then set -x; fi 
+if [[ -n $DEBUG ]]; then set -x; fi
 if [[ -n $WAIT ]]; then
   if [[ $(bc -l <<< "0 < $WAIT") -eq 1 ]]; then
     echo "Poll frequency set at $WAIT seconds"
   else
-    set WAIT=""
-  fi 
-fi 
+    WAIT=""
+  fi
+fi
 
 usage()
 {
@@ -60,7 +60,7 @@ usage()
   fi
 }
 
-#################################################### 
+####################################################
 
 # Wrapper around the wsk command
 function wskCli
@@ -121,9 +121,19 @@ function countStarts
 
 function createUser
 {
-	seed=user_$1
-	echo -n $seed ""
-	wskAdmin user create $seed
+    if [[ $1 != user* ]]; then
+	    seed=user_$1
+	else
+	    seed=$1
+	fi;
+
+	output=`wskAdmin user create $seed`
+
+	if [ "$output" = "Namespace already exists" ]; then
+		output=`getUserAuth $seed`
+	fi;
+
+	echo $seed $output
 }
 
 function randomUser
@@ -131,13 +141,14 @@ function randomUser
 	createUser $RANDOM
 }
 
-function randomFunction
+function createFunction
 {
-	local auth=$1
+    local auth=$1
 	if [ -z "$auth" ]; then
 		auth=$WSKAUTH
 	fi
-	seed=$RANDOM
+
+	seed=$2
 	file="$TMPDIR/wsk_func_$RANDOM.js"
 	touch $file
   cat << EOF >> $file
@@ -152,45 +163,63 @@ EOF
 	rm $file
 }
 
+function randomFunction
+{
+	createFunction $RANDOM
+}
+
 function getUserAuth {
 	local user=$1
 	if [ -z "$user" ]; then
 		user=$WSKUSER
-	fi 
-	echo -n $( wskAdmin user get $user ) 
+	fi
+	echo $( wskAdmin user get $user )
 }
 
-# getInvokeTime 
+# getInvokeTime
 # Invoke function (blocking)
-#	Returns <wait_time> <init_time> <run_time> 
+#	Returns <wait_time> <init_time> <run_time>
 function getInvokeTime
 {
 	init_t=0
 	wait_t=0
 	run_t=0
-  OUTPUT=$(bash -c "$WSKCLI -i  --apihost $WSKHOST action invoke -b $@ | tail -n +2")
-	len=$(echo $OUTPUT | jq -r '.annotations | length') 
+    OUTPUT=$(bash -c "$WSKCLI -i  --apihost $WSKHOST action invoke -b $@ | tail -n +2")
+
+    if [ -z "$OUTPUT" ]; then
+        OUTPUT="Threshold Reached Warning!"
+    fi
+
+	len=$(echo $OUTPUT | jq -r '.annotations | length')
 	run_t=$( echo $OUTPUT | jq -r '.duration' )
-	if [[ $len -eq 4 ]]; then # WARM/HOT START 
+
+	if [[ $len -eq 4 ]]; then # WARM/HOT START
 		wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[3]' | jq -r '.value' )
 	elif [[ $len -eq 5 ]]; then #COLD START
 		wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[1]' | jq -r '.value' )
 		init_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[4]' | jq -r '.value' )
 	fi
-	echo $wait_t $init_t $run_t 
+
+	echo $wait_t $init_t $run_t
 }
 
-# invokeFunction <function> <user>
 function invokeFunction {
+    local function=$1
+	local userAuth=$2
+    getInvokeTime "-u \"$userAuth\" $function"
+}
+
+function getAuthAndInvokeFunction {
 	local function=$1
 	local user=$2
 	if [ -z "$user" ]; then
 		user=$WSKUSER
-	fi 
-  getInvokeTime "-u $( getUserAuth $user ) $function"
+	fi
+
+	invokeFunctionWithAuth $function "$( getUserAuth $user)"
 }
 
-#################################################### 
+####################################################
 
 processargs()
 {
