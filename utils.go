@@ -45,7 +45,10 @@ func writeMapToFile(fileName os.File, writeMap  map[string]string, printOrder []
 		buffer.WriteString(writeMap[key])
 	}
 
-	printTxt := strings.TrimSpace(buffer.String()) + "\n"
+	printTxt := strings.TrimSpace(buffer.String())
+	fmt.Println(printTxt) 
+	printTxt += "\n"
+
 	fileName.WriteString(printTxt)
 }
 

@@ -20,13 +20,16 @@ var wgTime = sync.WaitGroup{}
 var outputFileWriter os.File
 
 func main() {
+	/* initialize array of command line arguments */
 	argsArr := make([]string, len(os.Args)-2)
 	copy(argsArr, os.Args[2:])
 
 	fmt.Println("Received Command: " + os.Args[1])
 
+	/* execute single openwhisk cli command */
 	if os.Args[1] == "execCmd" {
 		fmt.Println(execCmd(argsArr))
+	/* execute multiple openwhisk cli commands from file */
 	} else if os.Args[1] == "execFile" {
 		execCmdsFromFile(argsArr[0], len(argsArr) == 2 && argsArr[1] == "-create")
 	}
@@ -113,7 +116,8 @@ func execCmdsFromFile(filePath string, needCreation bool) {
 	for i := 0; i < OPEN_WHISK_CONCURRENCY_FACTOR; i++ {
 		go invokeFunction()
 	}
-
+		
+	start := time.Now()
 	for _, timeOfExecution := range timeArr {
 		fmt.Println("Submitting jobs at time " + strconv.Itoa(timeOfExecution))
 
@@ -136,10 +140,14 @@ func execCmdsFromFile(filePath string, needCreation bool) {
 		wgTime.Wait()
 		fmt.Println("Time " + strconv.Itoa(timeOfExecution) + " jobs completed.")
 	}
+	elapsed := time.Since(start)
+
+	fmt.Println("Total Job Time: ", elapsed.String())
 
 	outputFileWriter.Close()
 }
 
+/* execute single openwhisk cli command with argsArr arguments */
 func execCmd(argsArr []string) string {
 	var buffer bytes.Buffer
 
@@ -149,6 +157,7 @@ func execCmd(argsArr []string) string {
 	}
 
 	args := strings.TrimSpace(buffer.String())
+
 	cmdOut, err := exec.Command("./ow-bench.sh", args).Output()
 	if err != nil {
 		log.Fatal(err)
@@ -159,11 +168,12 @@ func execCmd(argsArr []string) string {
 
 func invokeFunction() {
 	for cmdMap := range cmdChan {
-		userAuth := cmdMap[USER_AUTH]
+		//userAuth := cmdMap[USER_AUTH]
 		functionID := cmdMap[FUNCTION_ID]
+                userAuth := "guest"
 
 		start := time.Now()
-		execResult := execCmd([]string{"invokeFunction", functionID, userAuth})
+		execResult := execCmd([]string{"invokeFunction", userAuth, functionID})
 		elapsed := time.Since(start)
 
 		resultMap := copyMap(cmdMap)

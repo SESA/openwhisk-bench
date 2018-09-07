@@ -12,5 +12,5 @@ const (
 	SUBMITTED_AT        = "StartTime"
 	ENDED_AT            = "EndTime"
 
-	OPEN_WHISK_CONCURRENCY_FACTOR = 4
+	OPEN_WHISK_CONCURRENCY_FACTOR = 1000
 )

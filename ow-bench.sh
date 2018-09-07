@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /bin/bash
 #
 #  Benchmarking & experimentation tool for Apache OpenWhisk
 #
@@ -25,7 +25,7 @@ export WSKLOG=${WSK_INVOKER_LOG:=/tmp/wsklogs/invoker0/invoker0_logs.log}
 export TMPDIR=${TMP_DIR:=/tmp}
 export WSKUSER=${WSK_USER:=guest}
 export WSKAUTH=${WSK_AUTH:=23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP}
-export WSKHOST=${WSK_HOST:=172.17.0.1:443}
+export WSKHOST=${WSK_HOST:=http://172.17.0.1:10001}  # Bypass API gateway, send requests direct to the Controller 
 export DEBUG=${DEBUG:=}
 export CLEAR=${CLEAR:=}
 export COUNT=${COUNT:=}
@@ -69,12 +69,70 @@ function wskCli
   bash -c "$cmd"
 }
 
+
+
+
 # Wrapper around the wskadmin command
 function wskAdmin
 {
   cmd="$WSKADMIN $@"
   bash -c "$cmd"
 }
+
+
+
+
+# Wrapper around go benchmark tool
+function runTest
+{
+  local test_file=$1
+  if [[ -z $test_file ]];
+  then
+    echo "Error: Cannot Run Tests; Test File Path Needed"
+    return
+  fi
+
+  if [[ "$2" = "--stats" ]];
+  then
+    if [[ -f temp.csv ]];
+    then
+      rm temp.csv
+    fi
+    if [[ -f stats.csv ]];
+    then
+      rm stats.csv
+    fi
+
+    go run *.go execFile $test_file --create >> temp.csv
+    local total_time="$(cat temp.csv | awk '/Total Job Time/ {print}')"
+
+    cat temp.csv | tail -n+9 | head -n -3 >> stats.csv
+    local numInvocations="$(cat stats.csv | wc -l)"
+    local total_wait="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $1}' | paste -sd+ | bc)"
+    local total_init="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $2}' | paste -sd+ | bc)"
+    local total_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $3}' | paste -sd+ | bc)"
+    local avg_wait="$((total_wait / numInvocations))"
+    local avg_init="$((total_init / numInvocations))"
+    local avg_duration="$((total_duration / numInvocations))"
+
+    echo "See Full Output in Temporary File: stats.csv"
+    echo ""
+    echo "Total Wait Time: $total_wait"
+    echo "Total Init Time: $total_init"
+    echo "Total Duration Time: $total_duration"
+    echo ""
+    echo "Average Wait Time: $avg_wait"
+    echo "Average Init Time: $avg_init"
+    echo "Average Duration Time: $avg_duration"
+    echo ""
+    echo "$total_time"
+
+  else
+    go run *.go execFile $test_file --create
+  fi
+}
+
+
 
 function countContainers
 {
@@ -100,6 +158,9 @@ function showContainers
   bash -c "$cmd"
 }
 
+
+
+
 function showStarts
 {
   extra=""
@@ -116,8 +177,13 @@ function countStarts
 {
   echo -e "cold:\t\t" $( showStarts cold | wc -l )
   echo -e "prewarm:\t" $( showStarts prewarm | wc -l )
-  echo -e "warm:\t\t" $( showStarts warm | wc -l )
+  echo -e "recreated:\t" $( showStarts recreated  | wc -l )
+  echo -e "warm:\t\t" $( showStarts warm | grep -v prewarm  | wc -l )
+  echo -e "TOTAL:\t\t" $( showStarts | wc -l )
 }
+
+
+
 
 function createUser
 {
@@ -141,32 +207,79 @@ function randomUser
 	createUser $RANDOM
 }
 
+
+
+
 function createFunction
 {
-    local auth=$1
-	if [ -z "$auth" ]; then
-		auth=$WSKAUTH
-	fi
+    if [ "$#" -lt 2 ];
+    then
+        echo "Error: Too Few Parameters to createFunction"
+        return
+    fi
+ 
+    local user_name=$1
+    local user_auth=$(wskadmin user get $user_name)
+    local action_name=$2
 
-	seed=$2
-	file="$TMPDIR/wsk_func_$RANDOM.js"
-	touch $file
-  cat << EOF >> $file
- function main() {
-    return {payload: 'RANDOM $seed'};
- }
-EOF
-  wskCli -u $auth action create $seed $file > /dev/null
-  if [ $? -eq 0 ]; then
-		echo $seed
-	fi
-	rm $file
+    local action_func=$3
+    if [ -z "$action_func" ];
+    then
+        action_func="$TMPDIR/wsk_fun_$action_name.js"
+        touch $action_func
+        echo "function main() { return {payload: 'RANDOM $seed'}; }" > $action_func
+    fi
+
+    wsk -i --apihost $WSKHOST --auth $user_auth action create $action_name $action_func
+
 }
+
+
+
 
 function randomFunction
 {
-	createFunction $RANDOM
+	createFunction guest $RANDOM 
 }
+
+
+
+
+function updateFunction
+{
+    if [ "$#" -lt 3 ];
+    then
+        echo "Error: Too Few Parameters to updateFunction"
+        return
+    fi
+ 
+    local user_name=$1
+    if [ -z "$user_name" ];
+    then
+        echo "Error: Cannot Create User Function; Need User Name"
+        return
+    fi
+    local user_auth=$(wskadmin user get $user_name)
+
+    local action_name=$2
+    if [ -z "$action_name" ];
+    then
+        echo "Error: Cannot Update Guest Function; Need User Function Name"
+        return
+    fi
+
+    local action_func=$3
+    if [ -z "$action_func" ];
+    then
+        echo "Error: Cannot Update Guest Function; Need User Function Implementation"
+        return
+    fi
+    
+    wsk -i --apihost $WSKHOST --auth $user_auth action update $action_name $action_func
+}
+
+
+
 
 function getUserAuth {
 	local user=$1
@@ -184,10 +297,11 @@ function getInvokeTime
 	init_t=0
 	wait_t=0
 	run_t=0
-    OUTPUT=$(bash -c "$WSKCLI -i  --apihost $WSKHOST action invoke -b $@ | tail -n +2")
+    	OUTPUT=$(bash -c "$WSKCLI -i  --apihost $WSKHOST action invoke -b $@ | tail -n +2")
 
     if [ -z "$OUTPUT" ]; then
         OUTPUT="Threshold Reached Warning!"
+				#TODO: RETURN ERROR,STOP EXPERIMENT
     fi
 
 	len=$(echo $OUTPUT | jq -r '.annotations | length')
@@ -198,16 +312,74 @@ function getInvokeTime
 	elif [[ $len -eq 5 ]]; then #COLD START
 		wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[1]' | jq -r '.value' )
 		init_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[4]' | jq -r '.value' )
+	elif [[ $len -eq 2 ]]; then #SEUSS RETURN
+		wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[0]' | jq -r '.value' )
+		init_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[1]' | jq -r '.value' )
 	fi
 
 	echo $wait_t $init_t $run_t
 }
 
-function invokeFunction {
-    local function=$1
-	local userAuth=$2
-    getInvokeTime "-u \"$userAuth\" $function"
+
+
+
+function invokeFunction
+{
+    if [ "$1" = "--verbose" ];
+    then
+        local verbosity=1
+        shift
+    else
+        local verbosity=0
+    fi
+
+
+    if [ "$#" -lt 2 ];
+    then
+        echo "Error: Too Few Parameters to invokeFunction"
+        return
+    fi
+
+ 
+    local user_name=$1
+    local user_auth=$(wskadmin user get $user_name)
+    local action_name=$2
+ 
+    shift 2
+ 
+    local action_flags=$@
+    if [ -z "$action_flags" ];
+    then
+        #echo "Invoking $action_name with no parameters."
+
+        if [ $verbosity -eq 1 ];
+        then
+            wsk -i --apihost $WSKHOST --auth $user_auth action invoke -b $action_name
+        else
+            getInvokeTime "-u \"$user_auth\" $action_name"
+        fi
+    else
+        if [ "$1" = "--param" ] || [ "$1" = "-p" ];
+        then
+            shift
+            local action_params=$@
+            #echo "Invoking $action_name with parameters: $action_params"
+
+            if [ $verbosity -eq 1 ];
+            then
+                wsk -i --apihost $WSKHOST --auth $user_auth action invoke -b $action_name --param $action_params
+            else
+                getInvokeTime "-u \"$user_auth\" $action_name --param $action_params"
+            fi
+        else
+            echo "Error: Invalid Flag"
+            return
+        fi
+    fi
 }
+
+
+
 
 function getAuthAndInvokeFunction {
 	local function=$1
@@ -217,6 +389,80 @@ function getAuthAndInvokeFunction {
 	fi
 
 	invokeFunctionWithAuth $function "$( getUserAuth $user)"
+}
+
+
+
+
+function deleteFunction
+{
+    if [ "$#" -lt 2 ];
+    then
+        echo "Error: Too Few Parameters to deleteFunction"
+        return
+    fi
+ 
+    local user_name=$1
+    if [ -z "$user_name" ];
+    then
+        echo "Error: Cannot Create User Function; Need User Name"
+        return
+    fi
+    local user_auth=$(wskadmin user get $user_name)
+
+    local action_name=$2
+    if [ -z "$action_name" ];
+    then
+        echo "Error: Cannot Delete Guest Function; Need User Function Name"
+        return
+    fi
+
+    wsk -i --apihost $WSKHOST --auth $user_auth action delete $action_name
+}
+
+
+
+
+function getFunction
+{
+    if [ "$#" -lt 2 ];
+    then
+        echo "Error: Too Few Parameters to getFunction"
+        return
+    fi
+ 
+    local user_name=$1
+    if [ -z "$user_name" ];
+    then
+        echo "Error: Cannot Create User Function; Need User Name"
+        return
+    fi
+    local user_auth=$(wskadmin user get $user_name)
+
+    local action_name=$2
+    if [ -z "$action_name" ];
+    then
+        echo "Error: Cannot Get Guest Function Metadata; Need Guest Function Name"
+        return
+    fi
+
+    wsk -i --apihost $WSKHOST --auth $user_auth action get $action_name
+}
+
+
+
+
+function listFunctions
+{
+    local user_name=$1
+    if [ -z "$user_name" ];
+    then
+        echo "Error: Cannot Create User Function; Need User Name"
+        return
+    fi
+    local user_auth=$(wskadmin user get $user_name)
+
+    wsk -i --apihost $WSKHOST --auth $user_auth action list
 }
 
 ####################################################

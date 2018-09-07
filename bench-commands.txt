@@ -1,0 +1,88 @@
+##################################################################
+#                                                                #
+# OpenWhisk CLI and Benchmarking: Helpful Documentation/Commands #        
+#                                                                #
+##################################################################
+
+
+Key Terms:
+	action_name:	name of action in openwhisk deployment database
+	action:		absolute path to file in which action is implemented
+
+
+
+
+To use wskCli as guest user on don host:
+
+	wsk -i --apihost 172.17.0.1:443 --auth 23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP [command]
+
+
+To use wskCli actions as guest user on don host:
+
+	wsk -i --apihost 172.17.0.1:443 --auth 23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP action [command]
+
+
+To use wskCli action commands as guest user on don host:
+
+	wsk -i --apihost 172.17.0.1:443 --auth 23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP action create <action name> <action> [flags]
+	wsk -i --apihost 172.17.0.1:443 --auth 23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP action update <action name> <action> [flags]
+	wsk -i --apihost 172.17.0.1:443 --auth 23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP action invoke <action name> [flags]
+	wsk -i --apihost 172.17.0.1:443 --auth 23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP action delete <action name> [flags]
+	wsk -i --apihost 172.17.0.1:443 --auth 23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP action get <action name> [FIELD_FILTER | --summary | --url] [flags]
+	wsk -i --apihost 172.17.0.1:443 --auth 23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP action list [ NAMESPACE | PACKAGE_NAME ] [flags]
+
+
+
+
+
+##################################################################
+
+To use ow-bench as user on don host to:
+
+##################################################################
+
+--> Create action:
+
+	./ow-bench createFunction <user_name> <action_name> <action>
+	(bails if user_name or action_name are null)
+	(creates random action if action is null)
+
+
+--> Create random action:
+
+	./ow-bench randomFunction
+	(creates random action for user: guest)
+
+
+--> Update existing action:
+
+	./ow-bench updateFunction <user_name> <action_name> <updated_action>
+	(bails if user_name, action_name, action is null)
+
+
+--> Invoke existing action:
+
+	./ow-bench invokeFunction [--verbose] <user_name> <action_name> [--param] <param_key> <param_value>
+	(blocks until invocation completes)
+	(bails if user_name or action_name is null)
+	(--verbose flag: enables verbose output)
+	(--param flag: enables parameter passing to function)
+
+
+--> Delete existing action:
+
+	./ow-bench deleteFunction <user_name> <action_name>
+	(bails if user_name or action_name is null)
+
+
+--> Get metadata of existing action:
+
+	./ow-bench getFunction <user_name> <action_name>
+	(bails if user_name or action_name is null)
+
+
+--> List existing actions:
+
+	./ow-bench listFunctions <user_name>
+	(bails if user_name is null)
+	
