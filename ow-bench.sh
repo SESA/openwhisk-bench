@@ -182,6 +182,12 @@ function countStarts
   echo -e "TOTAL:\t\t" $( showStarts | wc -l )
 }
 
+function countAll
+{
+  echo -e "countContainers " $(countContainers)
+  echo "countStarts"
+  countStarts
+}
 
 
 
