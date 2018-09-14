@@ -103,7 +103,7 @@ function runTest
       rm stats.csv
     fi
 
-    go run *.go execFile $test_file --create >> temp.csv
+    go run *.go --create execFile $test_file >> temp.csv
     local total_time="$(cat temp.csv | awk '/Total Job Time/ {print}')"
 
     cat temp.csv | tail -n+9 | head -n -3 >> stats.csv
@@ -128,7 +128,7 @@ function runTest
     echo "$total_time"
 
   else
-    go run *.go execFile $test_file --create
+    go run *.go --create execFile $test_file
   fi
 }
 
@@ -236,8 +236,11 @@ function createFunction
         echo "function main() { return {payload: 'RANDOM $seed'}; }" > $action_func
     fi
 
-    wsk -i --apihost $WSKHOST --auth $user_auth action create $action_name $action_func
+    wskCli --auth $user_auth action create $action_name $action_func > /dev/null
 
+    if [ $? -eq 0 ]; then
+	    echo $action_name
+    fi
 }
 
 
@@ -334,26 +337,42 @@ function invokeFunction
 {
     if [ "$1" = "--verbose" ];
     then
-        local verbosity=1
-        shift
+        user_name=$2
+        set -- "${@:1:1}" "${@:3}"
     else
-        local verbosity=0
+        user_name=$1
+        shift
     fi
 
+    local user_auth=$(wskadmin user get $user_name)
 
+    invokeFunctionWithAuth $user_auth $@
+}
+
+
+
+
+function invokeFunctionWithAuth {
     if [ "$#" -lt 2 ];
     then
         echo "Error: Too Few Parameters to invokeFunction"
         return
     fi
 
- 
-    local user_name=$1
-    local user_auth=$(wskadmin user get $user_name)
-    local action_name=$2
- 
-    shift 2
- 
+    local user_auth=$1
+    shift
+
+    if [ "$1" = "--verbose" ];
+    then
+        verbosity=1
+        shift
+    else
+        verbosity=0
+    fi
+
+    local action_name=$1
+    shift
+
     local action_flags=$@
     if [ -z "$action_flags" ];
     then
@@ -383,19 +402,6 @@ function invokeFunction
             return
         fi
     fi
-}
-
-
-
-
-function getAuthAndInvokeFunction {
-	local function=$1
-	local user=$2
-	if [ -z "$user" ]; then
-		user=$WSKUSER
-	fi
-
-	invokeFunctionWithAuth $function "$( getUserAuth $user)"
 }
 
 
@@ -464,7 +470,7 @@ function listFunctions
     local user_name=$1
     if [ -z "$user_name" ];
     then
-        echo "Error: Cannot Create User Function; Need User Name"
+        echo "Error: Cannot List User Functions; Need User Name"
         return
     fi
     local user_auth=$(wskadmin user get $user_name)

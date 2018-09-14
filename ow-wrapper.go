@@ -12,7 +12,8 @@ import (
 	"sync"
 	"log"
 	"time"
-		)
+	"flag"
+)
 
 var userVsAuthMap = make(map[string]string)
 var cmdChan = make(chan map[string]string)
@@ -20,18 +21,20 @@ var wgTime = sync.WaitGroup{}
 var outputFileWriter os.File
 
 func main() {
-	/* initialize array of command line arguments */
-	argsArr := make([]string, len(os.Args)-2)
-	copy(argsArr, os.Args[2:])
+	isCreateFlag := flag.Bool("create", false, "Create functions before execution")
 
-	fmt.Println("Received Command: " + os.Args[1])
+	flag.Parse()
+	fmt.Println("Create: ", *isCreateFlag)
+	argsArr := flag.Args()
+
+	fmt.Println("Received Command: " + argsArr[0])
 
 	/* execute single openwhisk cli command */
-	if os.Args[1] == "execCmd" {
-		fmt.Println(execCmd(argsArr))
+	if argsArr[0] == "execCmd" {
+		fmt.Println(execCmd(argsArr[1:]))
 	/* execute multiple openwhisk cli commands from file */
-	} else if os.Args[1] == "execFile" {
-		execCmdsFromFile(argsArr[0], len(argsArr) == 2 && argsArr[1] == "-create")
+	} else if argsArr[0] == "execFile" {
+		execCmdsFromFile(argsArr[1], *isCreateFlag)
 	}
 
 	fmt.Println("Execution Completed.")
@@ -78,9 +81,9 @@ func execCmdsFromFile(filePath string, needCreation bool) {
 			fmt.Println("User Creation Done.")
 
 			for user, funcList := range usersVsFuncsMap {
-				userAuth := userVsAuthMap[user]
+				//userAuth := userVsAuthMap[user]
 				for funcName := range funcList {
-					execCmd([]string{"createFunction", userAuth, strconv.Itoa(funcName)})
+					execCmd([]string{"createFunction", user, strconv.Itoa(funcName)})
 				}
 			}
 			fmt.Println("Function Creation Done.")
@@ -157,7 +160,6 @@ func execCmd(argsArr []string) string {
 	}
 
 	args := strings.TrimSpace(buffer.String())
-
 	cmdOut, err := exec.Command("./ow-bench.sh", args).Output()
 	if err != nil {
 		log.Fatal(err)
@@ -168,12 +170,11 @@ func execCmd(argsArr []string) string {
 
 func invokeFunction() {
 	for cmdMap := range cmdChan {
-		//userAuth := cmdMap[USER_AUTH]
+		userAuth := cmdMap[USER_AUTH]
 		functionID := cmdMap[FUNCTION_ID]
-                userAuth := "guest"
 
 		start := time.Now()
-		execResult := execCmd([]string{"invokeFunction", userAuth, functionID})
+		execResult := execCmd([]string{"invokeFunctionWithAuth", userAuth, functionID})
 		elapsed := time.Since(start)
 
 		resultMap := copyMap(cmdMap)
