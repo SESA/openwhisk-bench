@@ -317,7 +317,8 @@ function getInvokeTime
 		init_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[1]' | jq -r '.value' )
 	fi
 
-	echo $wait_t $init_t $run_t
+	final_run_t=`expr $run_t - $init_t`
+	echo $wait_t $init_t $final_run_t
 }
 
 
