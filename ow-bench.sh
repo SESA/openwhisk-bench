@@ -169,23 +169,22 @@ function showStarts
       extra="$extra | grep $i "
     done
   fi
-  cmd="grep containerState $WSKLOG $extra "
+  cmd="grep containerState $WSKLOG 2> /dev/null $extra | grep -v invokerHealth "
   bash -c "$cmd"
 }
 
 function countStarts
 {
-  echo -e "cold:\t\t" $( showStarts cold | wc -l )
-  echo -e "prewarm:\t" $( showStarts prewarm | wc -l )
-  echo -e "recreated:\t" $( showStarts recreated  | wc -l )
-  echo -e "warm:\t\t" $( showStarts warm | grep -v prewarm  | wc -l )
-  echo -e "TOTAL:\t\t" $( showStarts | wc -l )
+  echo -e "cold start:\t\t" $( showStarts cold | wc -l )
+  echo -e "prewarm start:\t\t" $( showStarts prewarm | wc -l )
+  echo -e "recreated:\t\t" $( showStarts recreated  | wc -l )
+  echo -e "warm start:\t\t" $( showStarts warm | grep -v prewarm  | wc -l )
+  echo -e "total start:\t\t" $( showStarts | wc -l )
 }
 
 function countAll
 {
-  echo -e "countContainers " $(countContainers)
-  echo "countStarts"
+  echo -e "containers:\t\t" $(countContainers nodejs) 
   countStarts
 }
 
