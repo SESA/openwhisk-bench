@@ -18,7 +18,7 @@
 #			DELAY = time to sleep between runs (poll if DELAY is set but COUNT is not)
 #			CLEAR = clear the screen between runs
 #			DEBUG = print full commands
-
+#set -x
 export WSKCLI=${WSK_CLI:=wsk}
 export WSKADMIN=${WSK_ADMIN:=wskadmin}
 export WSKLOG=${WSK_INVOKER_LOG:=/tmp/wsklogs/invoker0/invoker0_logs.log}
@@ -322,8 +322,10 @@ function getInvokeTime
 		init_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[1]' | jq -r '.value' )
 	fi
 
+	aid=$( echo $OUTPUT | jq -r '.activationId' )
+	
 	final_run_t=`expr $run_t - $init_t`
-	echo $wait_t $init_t $final_run_t
+	echo $wait_t $init_t $final_run_t $aid
 }
 
 
