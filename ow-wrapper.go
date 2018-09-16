@@ -17,7 +17,7 @@ import (
 var userVsAuthMap = make(map[string]string)
 var cmdChan = make(chan map[string]string)
 var wgTime = sync.WaitGroup{}
-var outputFileWriter os.File
+//var outputFileWriter os.File
 
 func main() {
 	/* initialize array of command line arguments */
@@ -93,7 +93,7 @@ func execCmdsFromFile(filePath string, needCreation bool) {
 		}
 	}
 
-	outputFileWriter = createOutputFile(filePath)
+	/*outputFileWriter = createOutputFile(filePath)
 	outputFileWriter.WriteString(TIME + ", ")
 	outputFileWriter.WriteString(USER_ID + ", ")
 	outputFileWriter.WriteString(FUNCTION_ID + ", ")
@@ -102,7 +102,7 @@ func execCmdsFromFile(filePath string, needCreation bool) {
 	outputFileWriter.WriteString(SUBMITTED_AT + ", ")
 	outputFileWriter.WriteString(ENDED_AT + ", ")
 	outputFileWriter.WriteString(ELAPSED_TIME_IN_NS + ", ")
-	outputFileWriter.WriteString(ELAPSED_TIME_IN_SEC + "\n")
+	outputFileWriter.WriteString(ELAPSED_TIME_IN_SEC + "\n")*/
 
 	fmt.Println("Started Invoking Functions")
 	timeArr := make([]int, 0, len(timeVsUserFuncMap))
@@ -142,10 +142,10 @@ func execCmdsFromFile(filePath string, needCreation bool) {
 	}
 	elapsed := time.Since(start)
 
-	fmt.Println("Total Job Time: ", int(elapsed.Seconds()*1000))
+	fmt.Println("Total Job Time:", int(elapsed.Seconds()*1000))
 	
 	
-	outputFileWriter.Close()
+	//outputFileWriter.Close()
 }
 
 /* execute single openwhisk cli command with argsArr arguments */
@@ -185,7 +185,9 @@ func invokeFunction() {
 		resultMap[ELAPSED_TIME_IN_NS] = strconv.FormatInt(elapsed.Nanoseconds(), 10)
 		resultMap[ELAPSED_TIME_IN_SEC] = strconv.Itoa(int(elapsed.Seconds()))
 
-		writeMapToFile(outputFileWriter, resultMap, []string{TIME, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, SUBMITTED_AT, ENDED_AT, ELAPSED_TIME_IN_NS, ELAPSED_TIME_IN_SEC})
+		//writeMapToFile(outputFileWriter, resultMap, []string{TIME, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, SUBMITTED_AT, ENDED_AT, ELAPSED_TIME_IN_NS, ELAPSED_TIME_IN_SEC})
+		writeMapToOut(resultMap, []string{TIME, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, SUBMITTED_AT, ENDED_AT, ELAPSED_TIME_IN_NS, ELAPSED_TIME_IN_SEC})
+
 		wgTime.Done()
 	}
 }

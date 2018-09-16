@@ -52,6 +52,21 @@ func writeMapToFile(fileName os.File, writeMap  map[string]string, printOrder []
 	fileName.WriteString(printTxt)
 }
 
+func writeMapToOut(writeMap  map[string]string, printOrder []string) {
+	var buffer bytes.Buffer
+
+	for _, key := range printOrder {
+		if buffer.Len() > 0 {
+			buffer.WriteString(", ")
+		}
+
+		buffer.WriteString(writeMap[key])
+	}
+
+	printTxt := strings.TrimSpace(buffer.String())
+	fmt.Println(printTxt) 
+}
+
 func createOutputFile(inputFilePath string) os.File {
 	extension := filepath.Ext(inputFilePath)
 	inputFileName := filepath.Base(inputFilePath)
