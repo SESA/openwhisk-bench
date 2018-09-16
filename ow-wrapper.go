@@ -142,8 +142,9 @@ func execCmdsFromFile(filePath string, needCreation bool) {
 	}
 	elapsed := time.Since(start)
 
-	fmt.Println("Total Job Time: ", elapsed.String())
-
+	fmt.Println("Total Job Time: ", int(elapsed.Seconds()*1000))
+	
+	
 	outputFileWriter.Close()
 }
 
