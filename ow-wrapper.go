@@ -18,13 +18,14 @@ import (
 var userVsAuthMap = make(map[string]string)
 var cmdChan = make(chan map[string]string)
 var wgTime = sync.WaitGroup{}
-//var outputFileWriter os.File
+var outputFileWriter os.File
 
 func main() {
+	isWriteToFile := flag.Bool("writeToFile", false, "Write output to file")
 	isCreateFlag := flag.Bool("create", false, "Create functions before execution")
 
 	flag.Parse()
-	fmt.Println("Create: ", *isCreateFlag)
+	fmt.Println("WriteToFile: ", *isWriteToFile, ", Create: ", *isCreateFlag)
 	argsArr := flag.Args()
 
 	fmt.Println("Received Command: " + argsArr[0])
@@ -34,13 +35,13 @@ func main() {
 		fmt.Println(execCmd(argsArr[1:]))
 	/* execute multiple openwhisk cli commands from file */
 	} else if argsArr[0] == "execFile" {
-		execCmdsFromFile(argsArr[1], *isCreateFlag)
+		execCmdsFromFile(argsArr[1], *isWriteToFile, *isCreateFlag)
 	}
 
 	fmt.Println("Execution Completed.")
 }
 
-func execCmdsFromFile(filePath string, needCreation bool) {
+func execCmdsFromFile(filePath string, writeToFile bool, needCreation bool) {
 	fmt.Println("Parsing File: " + filePath)
 	fread, _ := os.Open(filePath)
 	scanner := bufio.NewScanner(fread)
@@ -96,16 +97,18 @@ func execCmdsFromFile(filePath string, needCreation bool) {
 		}
 	}
 
-	/*outputFileWriter = createOutputFile(filePath)
-	outputFileWriter.WriteString(TIME + ", ")
-	outputFileWriter.WriteString(USER_ID + ", ")
-	outputFileWriter.WriteString(FUNCTION_ID + ", ")
-	outputFileWriter.WriteString(SEQ + ", ")
-	outputFileWriter.WriteString(CMD_RESULT + ", ")
-	outputFileWriter.WriteString(SUBMITTED_AT + ", ")
-	outputFileWriter.WriteString(ENDED_AT + ", ")
-	outputFileWriter.WriteString(ELAPSED_TIME_IN_NS + ", ")
-	outputFileWriter.WriteString(ELAPSED_TIME_IN_SEC + "\n")*/
+	if writeToFile {
+		outputFileWriter = createOutputFile(filePath)
+		outputFileWriter.WriteString(TIME + ", ")
+		outputFileWriter.WriteString(USER_ID + ", ")
+		outputFileWriter.WriteString(FUNCTION_ID + ", ")
+		outputFileWriter.WriteString(SEQ + ", ")
+		outputFileWriter.WriteString(CMD_RESULT + ", ")
+		outputFileWriter.WriteString(SUBMITTED_AT + ", ")
+		outputFileWriter.WriteString(ENDED_AT + ", ")
+		outputFileWriter.WriteString(ELAPSED_TIME_IN_NS + ", ")
+		outputFileWriter.WriteString(ELAPSED_TIME_IN_SEC + "\n")
+	}
 
 	fmt.Println("Started Invoking Functions")
 	timeArr := make([]int, 0, len(timeVsUserFuncMap))
@@ -117,7 +120,7 @@ func execCmdsFromFile(filePath string, needCreation bool) {
 
 	fmt.Println("Spanning " + strconv.Itoa(OPEN_WHISK_CONCURRENCY_FACTOR) + " co-routines to handle jobs")
 	for i := 0; i < OPEN_WHISK_CONCURRENCY_FACTOR; i++ {
-		go invokeFunction()
+		go invokeFunction(writeToFile)
 	}
 		
 	start := time.Now()
@@ -145,10 +148,9 @@ func execCmdsFromFile(filePath string, needCreation bool) {
 	}
 	elapsed := time.Since(start)
 
-	fmt.Println("Total_Job_Time:", int(elapsed.Seconds()*1000))
-	
-	
-	//outputFileWriter.Close()
+	fmt.Println("Total Job Time:", int(elapsed.Seconds()*1000))
+
+	outputFileWriter.Close()
 }
 
 /* execute single openwhisk cli command with argsArr arguments */
@@ -169,7 +171,7 @@ func execCmd(argsArr []string) string {
 	return strings.Trim(string(cmdOut), " \n")
 }
 
-func invokeFunction() {
+func invokeFunction(writeToFile bool) {
 	for cmdMap := range cmdChan {
 		userAuth := cmdMap[USER_AUTH]
 		functionID := cmdMap[FUNCTION_ID]
@@ -186,8 +188,11 @@ func invokeFunction() {
 		resultMap[ELAPSED_TIME_IN_NS] = strconv.FormatInt(elapsed.Nanoseconds(), 10)
 		resultMap[ELAPSED_TIME_IN_SEC] = strconv.Itoa(int(elapsed.Seconds()))
 
-		//writeMapToFile(outputFileWriter, resultMap, []string{TIME, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, SUBMITTED_AT, ENDED_AT, ELAPSED_TIME_IN_NS, ELAPSED_TIME_IN_SEC})
-		writeMapToOut(resultMap, []string{TIME, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, SUBMITTED_AT, ENDED_AT, ELAPSED_TIME_IN_NS, ELAPSED_TIME_IN_SEC})
+		if writeToFile {
+			writeMapToFile(outputFileWriter, resultMap, []string{TIME, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, SUBMITTED_AT, ENDED_AT, ELAPSED_TIME_IN_NS, ELAPSED_TIME_IN_SEC})
+		} else {
+			writeMapToOut(resultMap, []string{TIME, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, SUBMITTED_AT, ENDED_AT, ELAPSED_TIME_IN_NS, ELAPSED_TIME_IN_SEC})
+		}
 
 		wgTime.Done()
 	}

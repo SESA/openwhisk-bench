@@ -35,24 +35,11 @@ func copyMap(mapToBeCopied map[string]string) map[string]string {
 }
 
 func writeMapToFile(fileName os.File, writeMap  map[string]string, printOrder []string) {
-	var buffer bytes.Buffer
-
-	for _, key := range printOrder {
-		if buffer.Len() > 0 {
-			buffer.WriteString(", ")
-		}
-
-		buffer.WriteString(writeMap[key])
-	}
-
-	printTxt := strings.TrimSpace(buffer.String())
-	fmt.Println(printTxt) 
-	printTxt += "\n"
-
+	printTxt := writeMapToOut(writeMap, printOrder) + "\n"
 	fileName.WriteString(printTxt)
 }
 
-func writeMapToOut(writeMap  map[string]string, printOrder []string) {
+func writeMapToOut(writeMap  map[string]string, printOrder []string) string {
 	var buffer bytes.Buffer
 
 	for _, key := range printOrder {
@@ -64,7 +51,8 @@ func writeMapToOut(writeMap  map[string]string, printOrder []string) {
 	}
 
 	printTxt := strings.TrimSpace(buffer.String())
-	fmt.Println(printTxt) 
+	fmt.Println(printTxt)
+	return printTxt
 }
 
 func createOutputFile(inputFilePath string) os.File {
@@ -73,7 +61,7 @@ func createOutputFile(inputFilePath string) os.File {
 	inputFileName = inputFileName[0:len(inputFileName)-len(extension)]
 
 	executionTime := time.Now()
-	outputFileName := inputFileName + "_" + strconv.Itoa(executionTime.Year()) + "_" + executionTime.Month().String() + "_" + strconv.Itoa(executionTime.Day()) + "_" + strconv.Itoa(executionTime.Hour()) + "_" + strconv.Itoa(executionTime.Minute()) + "_" + strconv.Itoa(executionTime.Second()) + ".csv"
+	outputFileName := inputFileName + "_" + strconv.Itoa(executionTime.Year()) + "_" + executionTime.Month().String() + "_" + strconv.Itoa(executionTime.Day()) + "_" + strconv.Itoa(executionTime.Hour()) + "_" + strconv.Itoa(executionTime.Minute()) + "_" + strconv.Itoa(executionTime.Second()) + "_output.csv"
 
 	fileWriter, err := os.OpenFile(outputFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
