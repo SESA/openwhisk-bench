@@ -9,6 +9,7 @@ type UserFuncs struct {
 	Time               int
 	UserID             string
 	FunctionID         int
+	Param			   string
 	NoOfTimesToExecute int
 }
 
@@ -17,14 +18,26 @@ func (obj UserFuncs) String() string {
 }
 
 func createUserFuncsObj(contents []string) UserFuncs {
-	if len(contents) != 4 {
+	if len(contents) != 4 && len(contents) != 5 {
 		panic(fmt.Errorf("Invalid Content Length - %d", len(contents)))
 	}
 
-	return UserFuncs{
-		Time:               getIntFromStr(contents[0]),
-		UserID:             "user_" + contents[1],
-		FunctionID:         getIntFromStr(contents[2]),
-		NoOfTimesToExecute: getIntFromStr(contents[3]),
+	userFuncObj := UserFuncs{
+		Time:       getIntFromStr(contents[0]),
+		UserID:     "user_" + contents[1],
+		FunctionID: getIntFromStr(contents[2]),
+		NoOfTimesToExecute: getIntFromStr(func() string {
+			if len(contents) == 4 {
+				return contents[3]
+			} else {
+				return contents[4]
+			}
+		}()),
 	}
+
+	if len(contents) == 5 {
+		userFuncObj.Param = contents[3]
+	}
+
+	return userFuncObj
 }

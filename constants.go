@@ -5,6 +5,7 @@ const (
 	USER_ID             = "UserID"
 	USER_AUTH           = "UserAuth"
 	FUNCTION_ID         = "FunctionID"
+	PARAMETER           = "Parameter"
 	SEQ                 = "Seq"
 	CMD_RESULT          = "CmdResult"
 	ELAPSED_TIME_IN_NS  = "ElapsedTimeInNS"
