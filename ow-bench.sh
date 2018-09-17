@@ -334,30 +334,29 @@ function getInvokeTime
 	wait_t=0
 	run_t=0
 
-	OUTPUT=$(bash -c "$WSKCLI -i  --apihost $WSKHOST action invoke -b $@ | tail -n +2")
+	OUTPUT=$(bash -c "$WSKCLI -i --apihost $WSKHOST action invoke -b $@ | tail -n +2" 2>&1)
 
-    if [ -z "$OUTPUT" ]; then
-        OUTPUT="Threshold Reached Warning!"
-				#TODO: RETURN ERROR,STOP EXPERIMENT
+    if [[ $OUTPUT == error* ]]; then
+        echo $OUTPUT
+    else
+        len=$(echo $OUTPUT | jq -r '.annotations | length')
+        run_t=$( echo $OUTPUT | jq -r '.duration' )
+
+        if [[ $len -eq 4 ]]; then # WARM/HOT START
+            wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[3]' | jq -r '.value' )
+        elif [[ $len -eq 5 ]]; then #COLD START
+            wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[1]' | jq -r '.value' )
+            init_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[4]' | jq -r '.value' )
+        elif [[ $len -eq 2 ]]; then #SEUSS RETURN
+            wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[0]' | jq -r '.value' )
+            init_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[1]' | jq -r '.value' )
+        fi
+
+        aid=$( echo $OUTPUT | jq -r '.activationId' )
+
+        final_run_t=`expr $run_t - $init_t`
+        echo $wait_t $init_t $final_run_t $aid
     fi
-
-	len=$(echo $OUTPUT | jq -r '.annotations | length')
-	run_t=$( echo $OUTPUT | jq -r '.duration' )
-
-	if [[ $len -eq 4 ]]; then # WARM/HOT START
-		wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[3]' | jq -r '.value' )
-	elif [[ $len -eq 5 ]]; then #COLD START
-		wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[1]' | jq -r '.value' )
-		init_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[4]' | jq -r '.value' )
-	elif [[ $len -eq 2 ]]; then #SEUSS RETURN
-		wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[0]' | jq -r '.value' )
-		init_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[1]' | jq -r '.value' )
-	fi
-
-	aid=$( echo $OUTPUT | jq -r '.activationId' )
-	
-	final_run_t=`expr $run_t - $init_t`
-	echo $wait_t $init_t $final_run_t $aid
 }
 
 

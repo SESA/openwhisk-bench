@@ -204,5 +204,9 @@ func invokeFunction(writeToFile bool) {
 		}
 
 		wgTime.Done()
+
+		if strings.HasPrefix(execResult, "error") {
+			panic(fmt.Errorf("Error during execution - %s", execResult))
+		}
 	}
 }
