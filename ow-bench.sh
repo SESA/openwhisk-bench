@@ -332,7 +332,8 @@ function getInvokeTime
 	init_t=0
 	wait_t=0
 	run_t=0
-    	OUTPUT=$(bash -c "$WSKCLI -i  --apihost $WSKHOST action invoke -b $@ | tail -n +2")
+
+	OUTPUT=$(bash -c "$WSKCLI -i  --apihost $WSKHOST action invoke -b $@ | tail -n +2")
 
     if [ -z "$OUTPUT" ]; then
         OUTPUT="Threshold Reached Warning!"
