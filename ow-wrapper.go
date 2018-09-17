@@ -33,7 +33,7 @@ func main() {
 	/* execute single openwhisk cli command */
 	if argsArr[0] == "execCmd" {
 		fmt.Println(execCmd(argsArr[1:]))
-	/* execute multiple openwhisk cli commands from file */
+		/* execute multiple openwhisk cli commands from file */
 	} else if argsArr[0] == "execFile" {
 		execCmdsFromFile(argsArr[1], *isWriteToFile, *isCreateFlag)
 	}
@@ -59,9 +59,9 @@ func execCmdsFromFile(filePath string, writeToFile bool, needCreation bool) {
 			userFuncArr := timeVsUserFuncMap[userFuncObj.Time]
 			userFuncArr = append(userFuncArr, userFuncObj)
 			timeVsUserFuncMap[userFuncObj.Time] = userFuncArr
+			uniqueUsersList[userFuncObj.UserID] = exists
 
 			if needCreation {
-				uniqueUsersList[userFuncObj.UserID] = exists
 				uniqueFuncList, ok := usersVsFuncsMap[userFuncObj.UserID]
 				if !ok {
 					uniqueFuncList = make(map[int]struct{})
@@ -102,6 +102,7 @@ func execCmdsFromFile(filePath string, writeToFile bool, needCreation bool) {
 		outputFileWriter.WriteString(TIME + ", ")
 		outputFileWriter.WriteString(USER_ID + ", ")
 		outputFileWriter.WriteString(FUNCTION_ID + ", ")
+		outputFileWriter.WriteString(PARAMETER + ", ")
 		outputFileWriter.WriteString(SEQ + ", ")
 		outputFileWriter.WriteString(CMD_RESULT + ", ")
 		outputFileWriter.WriteString(SUBMITTED_AT + ", ")
@@ -122,7 +123,7 @@ func execCmdsFromFile(filePath string, writeToFile bool, needCreation bool) {
 	for i := 0; i < OPEN_WHISK_CONCURRENCY_FACTOR; i++ {
 		go invokeFunction(writeToFile)
 	}
-		
+
 	start := time.Now()
 	for _, timeOfExecution := range timeArr {
 		fmt.Println("Submitting jobs at time " + strconv.Itoa(timeOfExecution))
@@ -136,6 +137,7 @@ func execCmdsFromFile(filePath string, writeToFile bool, needCreation bool) {
 				cmdMap[USER_ID] = userFuncObj.UserID
 				cmdMap[USER_AUTH] = userAuth
 				cmdMap[FUNCTION_ID] = strconv.Itoa(userFuncObj.FunctionID)
+				cmdMap[PARAMETER] = userFuncObj.Param
 				cmdMap[SEQ] = strconv.Itoa(i)
 
 				wgTime.Add(1)
@@ -175,9 +177,15 @@ func invokeFunction(writeToFile bool) {
 	for cmdMap := range cmdChan {
 		userAuth := cmdMap[USER_AUTH]
 		functionID := cmdMap[FUNCTION_ID]
+		param := cmdMap[PARAMETER]
 
 		start := time.Now()
-		execResult := execCmd([]string{"invokeFunctionWithAuth", userAuth, functionID})
+		paramArr := []string{"invokeFunctionWithAuth", userAuth, functionID}
+		if param != "" {
+			paramArr = append(paramArr, "--param", param)
+		}
+
+		execResult := execCmd(paramArr)
 		elapsed := time.Since(start)
 
 		resultMap := copyMap(cmdMap)
@@ -188,10 +196,11 @@ func invokeFunction(writeToFile bool) {
 		resultMap[ELAPSED_TIME_IN_NS] = strconv.FormatInt(elapsed.Nanoseconds(), 10)
 		resultMap[ELAPSED_TIME_IN_SEC] = strconv.Itoa(int(elapsed.Seconds()))
 
+		orderArr := []string{TIME, USER_ID, FUNCTION_ID, PARAMETER, SEQ, CMD_RESULT, SUBMITTED_AT, ENDED_AT, ELAPSED_TIME_IN_NS, ELAPSED_TIME_IN_SEC}
 		if writeToFile {
-			writeMapToFile(outputFileWriter, resultMap, []string{TIME, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, SUBMITTED_AT, ENDED_AT, ELAPSED_TIME_IN_NS, ELAPSED_TIME_IN_SEC})
+			writeMapToFile(outputFileWriter, resultMap, orderArr)
 		} else {
-			writeMapToOut(resultMap, []string{TIME, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, SUBMITTED_AT, ENDED_AT, ELAPSED_TIME_IN_NS, ELAPSED_TIME_IN_SEC})
+			writeMapToOut(resultMap, orderArr)
 		}
 
 		wgTime.Done()
