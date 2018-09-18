@@ -219,11 +219,7 @@ function countAll
 
 function createUser
 {
-    if [[ $1 != user* ]]; then
-	    seed=user_$1
-	else
-	    seed=$1
-	fi;
+    seed=$1
 
 	output=`wskAdmin user create $seed`
 
