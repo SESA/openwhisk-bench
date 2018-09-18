@@ -9,7 +9,7 @@ type UserFuncs struct {
 	Time               int
 	UserID             string
 	FunctionID         int
-	Param			   string
+	Param              string
 	NoOfTimesToExecute int
 }
 
@@ -23,8 +23,14 @@ func createUserFuncsObj(contents []string) UserFuncs {
 	}
 
 	userFuncObj := UserFuncs{
-		Time:       getIntFromStr(contents[0]),
-		UserID:     "user_" + contents[1],
+		Time: getIntFromStr(contents[0]),
+		UserID: func() string {
+			if _, err := strconv.Atoi(contents[1]); err == nil {
+				return "user_" + contents[1]
+			} else {
+				return contents[1]
+			}
+		}(),
 		FunctionID: getIntFromStr(contents[2]),
 		NoOfTimesToExecute: getIntFromStr(func() string {
 			if len(contents) == 4 {

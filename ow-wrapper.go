@@ -165,6 +165,7 @@ func execCmd(argsArr []string) string {
 	}
 
 	args := strings.TrimSpace(buffer.String())
+	//fmt.Println(args)
 	cmdOut, err := exec.Command("./ow-bench.sh", args).Output()
 	if err != nil {
 		log.Fatal(err)
