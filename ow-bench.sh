@@ -104,7 +104,7 @@ function runTest
     fi
 
     go run *.go --create execFile $test_file >> temp.csv
-    local total_time="$(cat temp.csv | awk '/Total Job Time/ {print}')"
+    local total_time="$(cat temp.csv | awk '/Total_Job_Time/ {print}')"
 
     cat temp.csv | tail -n+9 | head -n -3 >> stats.csv
     local numInvocations="$(cat stats.csv | wc -l)"
@@ -144,12 +144,12 @@ function runTest
     echo "Max_Wait_Time: $max_wait"
     echo "Stdev_Wait: $wait_stdev"
     echo ""
-    echo "Min Init Time: $min_init"
-    echo "Max Init Time: $max_init"
+    echo "Min_Init_Time: $min_init"
+    echo "Max_Init_Time: $max_init"
     echo "Stdev_Init: $init_stdev"
     echo ""
-    echo "Min Duration Time: $min_duration"
-    echo "Max Duration Time: $max_duration"
+    echo "Min_Duration_Time: $min_duration"
+    echo "Max_Duration_Time: $max_duration"
     echo "Stdev_Duration: $duration_stdev"
     echo ""
     echo "$total_time"
