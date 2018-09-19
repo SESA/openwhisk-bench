@@ -103,7 +103,8 @@ function runTest
       rm stats.csv
     fi
 
-    go run *.go --create execFile $test_file >> temp.csv
+    #go run *.go --create execFile $test_file >> temp.csv
+    go run *.go execFile $test_file >> temp.csv
     local total_time="$(cat temp.csv | awk '/Total_Job_Time/ {print}')"
 
     cat temp.csv | tail -n+9 | head -n -3 >> stats.csv
@@ -118,12 +119,12 @@ function runTest
     local avg_duration="$((total_duration / numInvocations))"
 
     # min, max
-    local min_wait="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $1}' | sort | head -1)"
-    local max_wait="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $1}' | sort -rn | head -1)"
-    local min_init="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $2}' | sort | head -1)"
-    local max_init="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $2}' | sort -rn | head -1)"
-    local min_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $3}' | sort | head -1)"
-    local max_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $3}' | sort -rn | head -1)"
+    local min_wait="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $1}' | sort -n | head -1)"
+    local max_wait="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $1}' | sort -n | tail -1)"
+    local min_init="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $2}' | sort -n | head -1)"
+    local max_init="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $2}' | sort -n | tail -1)"
+    local min_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $3}' | sort -n | head -1)"
+    local max_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $3}' | sort -n | tail -1)"
 
     # stddev
     local wait_stdev="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $1}' | awk '{sum+=$1; sumsq+=$1*$1}END{print int(sqrt(sumsq/NR - (sum/NR)**2))}')"
@@ -155,7 +156,7 @@ function runTest
     echo "$total_time"
 
   else
-    go run *.go --create execFile $test_file
+    go run *.go execFile $test_file
   fi
 }
 
