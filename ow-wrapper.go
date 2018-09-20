@@ -84,7 +84,7 @@ func execCmdsFromFile(filePath string, writeToFile bool, needCreation bool) {
 			for user, funcList := range usersVsFuncsMap {
 				//userAuth := userVsAuthMap[user]
 				for funcName := range funcList {
-					execCmd([]string{"createFunction", user, strconv.Itoa(funcName)})
+					execCmd([]string{"createFunction", user, strconv.Itoa(funcName), "funcs/spin.js"})
 				}
 			}
 			fmt.Println("Function Creation Done.")

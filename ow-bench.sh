@@ -255,6 +255,7 @@ function createFunction
     if [ -z "$action_func" ];
     then
         action_func="$TMPDIR/wsk_fun_$action_name.js"
+        mkdir -p $TMPDIR
         touch $action_func
         echo "function main() { return {payload: 'RANDOM $seed'}; }" > $action_func
     fi
