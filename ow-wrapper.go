@@ -1,18 +1,18 @@
 package main
 
 import (
-	"fmt"
-	"os"
 	"bufio"
-	"os/exec"
 	"bytes"
-	"strings"
-	"strconv"
-	"sort"
-	"sync"
-	"log"
-	"time"
 	"flag"
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
 var userVsAuthMap = make(map[string]string)
@@ -102,13 +102,12 @@ func execCmdsFromFile(filePath string, writeToFile bool, needCreation bool) {
 		outputFileWriter.WriteString(TIME + ", ")
 		outputFileWriter.WriteString(USER_ID + ", ")
 		outputFileWriter.WriteString(FUNCTION_ID + ", ")
-		outputFileWriter.WriteString(PARAMETER + ", ")
 		outputFileWriter.WriteString(SEQ + ", ")
 		outputFileWriter.WriteString(CMD_RESULT + ", ")
+		outputFileWriter.WriteString(ELAPSED_TIME + ", ")
 		outputFileWriter.WriteString(SUBMITTED_AT + ", ")
 		outputFileWriter.WriteString(ENDED_AT + ", ")
-		outputFileWriter.WriteString(ELAPSED_TIME_IN_NS + ", ")
-		outputFileWriter.WriteString(ELAPSED_TIME_IN_SEC + "\n")
+		outputFileWriter.WriteString(PARAMETER + "\n")
 	}
 
 	fmt.Println("Started Invoking Functions")
@@ -180,24 +179,23 @@ func invokeFunction(writeToFile bool) {
 		functionID := cmdMap[FUNCTION_ID]
 		param := cmdMap[PARAMETER]
 
-		start := time.Now()
+		start := time.Now().UnixNano()
 		paramArr := []string{"invokeFunctionWithAuth", userAuth, functionID}
 		if param != "" {
 			paramArr = append(paramArr, "--param", param)
 		}
-
 		execResult := execCmd(paramArr)
-		elapsed := time.Since(start)
+		end := time.Now().UnixNano()
+		elapsed := ((end - start) / 1000000) /* nano to milli */
 
 		resultMap := copyMap(cmdMap)
 		delete(resultMap, USER_AUTH)
 		resultMap[CMD_RESULT] = execResult
-		resultMap[SUBMITTED_AT] = start.String()
-		resultMap[ENDED_AT] = start.Add(elapsed).String()
-		resultMap[ELAPSED_TIME_IN_NS] = strconv.FormatInt(elapsed.Nanoseconds(), 10)
-		resultMap[ELAPSED_TIME_IN_SEC] = strconv.Itoa(int(elapsed.Seconds()))
+		resultMap[SUBMITTED_AT] = strconv.FormatInt(start, 10)
+		resultMap[ENDED_AT] = strconv.FormatInt(end, 10)
+		resultMap[ELAPSED_TIME] = strconv.FormatInt(elapsed, 10)
 
-		orderArr := []string{TIME, USER_ID, FUNCTION_ID, PARAMETER, SEQ, CMD_RESULT, SUBMITTED_AT, ENDED_AT, ELAPSED_TIME_IN_NS, ELAPSED_TIME_IN_SEC}
+		orderArr := []string{TIME, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, ELAPSED_TIME, SUBMITTED_AT, ENDED_AT, PARAMETER}
 		if writeToFile {
 			writeMapToFile(outputFileWriter, resultMap, orderArr)
 		} else {

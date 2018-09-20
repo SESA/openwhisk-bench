@@ -333,7 +333,8 @@ function getInvokeTime
 	OUTPUT=$(bash -c "$WSKCLI -i --apihost $WSKHOST action invoke -b $@ | tail -n +2" 2>&1)
 
     if [[ $OUTPUT == error* ]]; then
-        echo $OUTPUT
+        echo "$OUTPUT" > /dev/stderr
+        echo -1, -1, -1, -1
     else
         len=$(echo $OUTPUT | jq -r '.annotations | length')
         run_t=$( echo $OUTPUT | jq -r '.duration' )
@@ -349,9 +350,9 @@ function getInvokeTime
         fi
 
         aid=$( echo $OUTPUT | jq -r '.activationId' )
+        duration_t=`expr $run_t - $init_t`
 
-        final_run_t=`expr $run_t - $init_t`
-        echo $wait_t $init_t $final_run_t $aid
+        echo $aid, $wait_t, $init_t, $duration_t 
     fi
 }
 
