@@ -21,11 +21,17 @@ var wgTime = sync.WaitGroup{}
 var outputFileWriter os.File
 
 func main() {
-	isWriteToFile := flag.Bool("writeToFile", false, "Write output to file")
+	writeToFile := flag.Bool("writeToFile", false, "Write output to file")
+	outputFilePath := flag.String("fileName", generateOutputFileName(), "Write output to file")
 	isCreateFlag := flag.Bool("create", false, "Create functions before execution")
 
 	flag.Parse()
-	fmt.Println("WriteToFile: ", *isWriteToFile, ", Create: ", *isCreateFlag)
+	if !*writeToFile {
+		fmt.Println("asd")
+		*outputFilePath = ""
+	}
+
+	fmt.Println("WriteToFile: ", *writeToFile, ", FileName: ", *outputFilePath, ", Create: ", *isCreateFlag)
 	argsArr := flag.Args()
 
 	fmt.Println("Received Command: " + argsArr[0])
@@ -35,15 +41,15 @@ func main() {
 		fmt.Println(execCmd(argsArr[1:]))
 		/* execute multiple openwhisk cli commands from file */
 	} else if argsArr[0] == "execFile" {
-		execCmdsFromFile(argsArr[1], *isWriteToFile, *isCreateFlag)
+		execCmdsFromFile(argsArr[1], *outputFilePath, *isCreateFlag)
 	}
 
 	fmt.Println("Execution Completed.")
 }
 
-func execCmdsFromFile(filePath string, writeToFile bool, needCreation bool) {
-	fmt.Println("Parsing File: " + filePath)
-	fread, _ := os.Open(filePath)
+func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation bool) {
+	fmt.Println("Parsing File: " + inputFilePath)
+	fread, _ := os.Open(inputFilePath)
 	scanner := bufio.NewScanner(fread)
 
 	timeVsUserFuncMap := make(map[int][]UserFuncs)
@@ -97,8 +103,8 @@ func execCmdsFromFile(filePath string, writeToFile bool, needCreation bool) {
 		}
 	}
 
-	if writeToFile {
-		outputFileWriter = createOutputFile(filePath)
+	if outputFilePath != "" {
+		outputFileWriter = createOutputFile(outputFilePath)
 		outputFileWriter.WriteString(TIME + ", ")
 		outputFileWriter.WriteString(USER_ID + ", ")
 		outputFileWriter.WriteString(FUNCTION_ID + ", ")
@@ -120,7 +126,7 @@ func execCmdsFromFile(filePath string, writeToFile bool, needCreation bool) {
 
 	fmt.Println("Spanning " + strconv.Itoa(OPEN_WHISK_CONCURRENCY_FACTOR) + " co-routines to handle jobs")
 	for i := 0; i < OPEN_WHISK_CONCURRENCY_FACTOR; i++ {
-		go invokeFunction(writeToFile)
+		go invokeFunction(outputFilePath != "")
 	}
 
 	start := time.Now()
