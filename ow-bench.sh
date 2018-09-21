@@ -103,33 +103,32 @@ function runTest
       rm stats.csv
     fi
 
-    #go run *.go --create execFile $test_file >> temp.csv
-    go run *.go execFile $test_file >> temp.csv
+    go run *.go --create execFile $test_file >> temp.csv
     local total_time="$(cat temp.csv | awk '/Total_Job_Time/ {print}')"
 
     cat temp.csv | tail -n+9 | head -n -3 >> stats.csv
     local numInvocations="$(cat stats.csv | wc -l)"
-    local total_wait="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $1}' | paste -sd+ | bc)"
-    local total_init="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $2}' | paste -sd+ | bc)"
-    local total_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $3}' | paste -sd+ | bc)"
-
+    local total_wait="$(cat stats.csv | awk -F "\"*,\"*" '{print $6}' | paste -sd+ | bc)"
+    local total_init="$(cat stats.csv | awk -F "\"*,\"*" '{print $7}' | paste -sd+ | bc)"
+    local total_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $8}' | paste -sd+ | bc)"
+    
     # averages
     local avg_wait="$((total_wait / numInvocations))"
     local avg_init="$((total_init / numInvocations))"
     local avg_duration="$((total_duration / numInvocations))"
 
     # min, max
-    local min_wait="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $1}' | sort -n | head -1)"
-    local max_wait="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $1}' | sort -n | tail -1)"
-    local min_init="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $2}' | sort -n | head -1)"
-    local max_init="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $2}' | sort -n | tail -1)"
-    local min_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $3}' | sort -n | head -1)"
-    local max_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $3}' | sort -n | tail -1)"
+    local min_wait="$(cat stats.csv | awk -F "\"*,\"*" '{print $6}' | sort -n | head -1)"
+    local max_wait="$(cat stats.csv | awk -F "\"*,\"*" '{print $6}' | sort -n | tail -1)"
+    local min_init="$(cat stats.csv | awk -F "\"*,\"*" '{print $7}' | sort -n | head -1)"
+    local max_init="$(cat stats.csv | awk -F "\"*,\"*" '{print $7}' | sort -n | tail -1)"
+    local min_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $8}' | sort -n | head -1)"
+    local max_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $8}' | sort -n | tail -1)"
 
     # stddev
-    local wait_stdev="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $1}' | awk '{sum+=$1; sumsq+=$1*$1}END{print int(sqrt(sumsq/NR - (sum/NR)**2))}')"
-    local init_stdev="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $2}' | awk '{sum+=$1; sumsq+=$1*$1}END{print int(sqrt(sumsq/NR - (sum/NR)**2))}')"
-    local duration_stdev="$(cat stats.csv | awk -F "\"*,\"*" '{print $5}' | awk '{print $3}' | awk '{sum+=$1; sumsq+=$1*$1}END{print int(sqrt(sumsq/NR - (sum/NR)**2))}')"
+    local wait_stdev="$(cat stats.csv | awk -F "\"*,\"*" '{print $6}' | awk '{sum+=$1; sumsq+=$1*$1}END{print int(sqrt(sumsq/NR - (sum/NR)**2))}')"
+    local init_stdev="$(cat stats.csv | awk -F "\"*,\"*" '{print $7}' | awk '{sum+=$1; sumsq+=$1*$1}END{print int(sqrt(sumsq/NR - (sum/NR)**2))}')"
+    local duration_stdev="$(cat stats.csv | awk -F "\"*,\"*" '{print $8}' | awk '{sum+=$1; sumsq+=$1*$1}END{print int(sqrt(sumsq/NR - (sum/NR)**2))}')"
 
     echo "See Full Output in Temporary File: stats.csv"
     echo ""
@@ -156,7 +155,7 @@ function runTest
     echo "$total_time"
 
   else
-    go run *.go execFile $test_file
+    go run *.go --create execFile $test_file
   fi
 }
 

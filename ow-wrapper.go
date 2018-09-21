@@ -125,7 +125,7 @@ func execCmdsFromFile(filePath string, writeToFile bool, needCreation bool) {
 
 	start := time.Now()
 	for _, timeOfExecution := range timeArr {
-		fmt.Println("Submitting jobs at time " + strconv.Itoa(timeOfExecution))
+		//fmt.Println("Submitting jobs at time " + strconv.Itoa(timeOfExecution))
 
 		for _, userFuncObj := range timeVsUserFuncMap[timeOfExecution] {
 			userAuth := userVsAuthMap[userFuncObj.UserID]
