@@ -111,11 +111,13 @@ function runTest
     local total_wait="$(cat stats.csv | awk -F "\"*,\"*" '{print $6}' | paste -sd+ | bc)"
     local total_init="$(cat stats.csv | awk -F "\"*,\"*" '{print $7}' | paste -sd+ | bc)"
     local total_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $8}' | paste -sd+ | bc)"
+    local total_rtt="$(cat stats.csv | awk -F "\"*,\"*" '{print $9}' | paste -sd+ | bc)"
     
     # averages
     local avg_wait="$((total_wait / numInvocations))"
     local avg_init="$((total_init / numInvocations))"
     local avg_duration="$((total_duration / numInvocations))"
+    local avg_rtt="$((total_rtt / numInvocations))"
 
     # min, max
     local min_wait="$(cat stats.csv | awk -F "\"*,\"*" '{print $6}' | sort -n | head -1)"
@@ -124,11 +126,14 @@ function runTest
     local max_init="$(cat stats.csv | awk -F "\"*,\"*" '{print $7}' | sort -n | tail -1)"
     local min_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $8}' | sort -n | head -1)"
     local max_duration="$(cat stats.csv | awk -F "\"*,\"*" '{print $8}' | sort -n | tail -1)"
+    local min_rtt="$(cat stats.csv | awk -F "\"*,\"*" '{print $9}' | sort -n | head -1)"
+    local max_rtt="$(cat stats.csv | awk -F "\"*,\"*" '{print $9}' | sort -n | tail -1)"
 
     # stddev
     local wait_stdev="$(cat stats.csv | awk -F "\"*,\"*" '{print $6}' | awk '{sum+=$1; sumsq+=$1*$1}END{print int(sqrt(sumsq/NR - (sum/NR)**2))}')"
     local init_stdev="$(cat stats.csv | awk -F "\"*,\"*" '{print $7}' | awk '{sum+=$1; sumsq+=$1*$1}END{print int(sqrt(sumsq/NR - (sum/NR)**2))}')"
     local duration_stdev="$(cat stats.csv | awk -F "\"*,\"*" '{print $8}' | awk '{sum+=$1; sumsq+=$1*$1}END{print int(sqrt(sumsq/NR - (sum/NR)**2))}')"
+    local rtt_stdev="$(cat stats.csv | awk -F "\"*,\"*" '{print $9}' | awk '{sum+=$1; sumsq+=$1*$1}END{print int(sqrt(sumsq/NR - (sum/NR)**2))}')"
 
     echo "See Full Output in Temporary File: stats.csv"
     echo ""
@@ -137,20 +142,24 @@ function runTest
     echo "Total_Duration_Time: $total_duration"
     echo ""
     echo "Average_Wait_Time: $avg_wait"
-    echo "Average_Init_Time: $avg_init"
-    echo "Average_Duration_Time: $avg_duration"
-    echo ""
     echo "Min_Wait_Time: $min_wait"
     echo "Max_Wait_Time: $max_wait"
     echo "Stdev_Wait: $wait_stdev"
     echo ""
+    echo "Average_Init_Time: $avg_init"
     echo "Min_Init_Time: $min_init"
     echo "Max_Init_Time: $max_init"
     echo "Stdev_Init: $init_stdev"
     echo ""
+    echo "Average_Duration_Time: $avg_duration"
     echo "Min_Duration_Time: $min_duration"
     echo "Max_Duration_Time: $max_duration"
     echo "Stdev_Duration: $duration_stdev"
+    echo ""
+    echo "Average_RTT_Time: $avg_rtt"
+    echo "Min_RTT_Time: $min_rtt"
+    echo "Max_RTT_Time: $max_rtt"
+    echo "Stdev_RTT: $rtt_stdev"
     echo ""
     echo "$total_time"
 
