@@ -180,7 +180,7 @@ function createFunction
         echo "function main() { return {payload: 'RANDOM $seed'}; }" > $action_func
     fi
 
-    wskCli --auth $user_auth action create $action_name $action_func > /dev/null
+    wskCli --auth $user_auth action create --timeout 300000 $action_name $action_func > /dev/null
 
     if [ $? -eq 0 ]; then
 	    echo $action_name
@@ -247,16 +247,27 @@ function getUserAuth {
 #	Returns <wait_time> <init_time> <run_time>
 function getInvokeTime
 {
-	init_t=0
-	wait_t=0
-	run_t=0
-
 	OUTPUT=$(bash -c "$WSKCLI -i --apihost $WSKHOST action invoke -b $@ | tail -n +2" 2>&1)
+    parseOutput "$OUTPUT"
+}
+
+
+function parseOutput
+{
+    if [ "$#" -ne 1 ];
+    then
+        echo "Error: Invalid Output"
+        return
+    fi
+
+    OUTPUT=$1
 
     if [[ $OUTPUT == error* ]]; then
         echo "$OUTPUT" > /dev/stderr
         echo -1, -1, -1, -1
     else
+        init_t=0
+
         len=$(echo $OUTPUT | jq -r '.annotations | length')
         run_t=$( echo $OUTPUT | jq -r '.duration' )
 
@@ -271,13 +282,11 @@ function getInvokeTime
         fi
 
         aid=$( echo $OUTPUT | jq -r '.activationId' )
-        duration_t=`expr $run_t - $init_t`
+        duration_t=`expr ${run_t} - ${init_t}`
 
-        echo $aid, $wait_t, $init_t, $duration_t 
+        echo ${aid}, ${wait_t}, ${init_t}, ${duration_t}
     fi
 }
-
-
 
 
 function invokeFunction
@@ -293,13 +302,14 @@ function invokeFunction
 
     local user_auth=$(wskadmin user get $user_name)
 
-    invokeFunctionWithAuth $user_auth $@
+    invokeFunctionWithAuth false $user_auth $@
 }
 
 
-
-
 function invokeFunctionWithAuth {
+    isAsync=$1
+    shift
+
     if [ "$#" -lt 2 ];
     then
         echo "Error: Too Few Parameters to invokeFunction"
@@ -327,9 +337,19 @@ function invokeFunctionWithAuth {
 
         if [ $verbosity -eq 1 ];
         then
-            wsk -i --apihost $WSKHOST --auth $user_auth action invoke -b $action_name
+            if [ "$isAsync" == true ];
+            then
+                wsk -i --apihost $WSKHOST --auth $user_auth action invoke $action_name
+            else
+                wsk -i --apihost $WSKHOST --auth $user_auth action invoke -b $action_name
+            fi
         else
-            getInvokeTime "-u \"$user_auth\" $action_name"
+            if [ "$isAsync" == true ];
+            then
+                invokeAndGetActivationID "-u \"$user_auth\" $action_name"
+            else
+                getInvokeTime "-u \"$user_auth\" $action_name"
+            fi
         fi
     else
         if [ "$1" = "--param" ] || [ "$1" = "-p" ];
@@ -340,9 +360,19 @@ function invokeFunctionWithAuth {
 
             if [ $verbosity -eq 1 ];
             then
-                wsk -i --apihost $WSKHOST --auth $user_auth action invoke -b $action_name --param $action_params
+                if [ "$isAsync" == true ];
+                then
+                    wsk -i --apihost $WSKHOST --auth $user_auth action invoke $action_name --param $action_params
+                else
+                    wsk -i --apihost $WSKHOST --auth $user_auth action invoke -b $action_name --param $action_params
+                fi
             else
-                getInvokeTime "-u \"$user_auth\" $action_name --param $action_params"
+                if [ "$isAsync" == true ];
+                then
+                    invokeAndGetActivationID "-u \"$user_auth\" $action_name --param $action_params"
+                else
+                    getInvokeTime "-u \"$user_auth\" $action_name --param $action_params"
+                fi
             fi
         else
             echo "Error: Invalid Flag"
@@ -352,6 +382,40 @@ function invokeFunctionWithAuth {
 }
 
 
+function invokeAndGetActivationID
+{
+    OUTPUT=$(bash -c "$WSKCLI -i --apihost $WSKHOST action invoke $@" 2>&1)
+
+    if [[ $OUTPUT == error* ]]; then
+        echo "$OUTPUT" > /dev/stderr
+        echo -1
+    else
+        IFS=' ' read -r -a arr <<< "$OUTPUT"
+        echo ${arr[${#arr[@]}-1]}
+    fi
+}
+
+
+function invokeFunctionWithAuthAsync
+{
+    invokeFunctionWithAuth true $@
+}
+
+
+function getResultFromActivation
+{
+    if [ "$#" -lt 2 ];
+    then
+        echo "Error: Too Few Parameters to get result"
+        return
+    fi
+
+    user_auth=$1
+    activation_id=$2
+
+    OUTPUT=$(bash -c "$WSKCLI -i --apihost $WSKHOST -u $user_auth activation get $activation_id | tail -n +2" 2>&1)
+    parseOutput "$OUTPUT"
+}
 
 
 function deleteFunction

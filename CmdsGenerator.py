@@ -33,6 +33,7 @@ parser.add_argument("-s", "--sequence", help="Sequence max limit")
 parser.add_argument("-u", "--users", help="No. of users to generate")
 parser.add_argument("-f", "--functions", help="No.of functions (lower-upper bound) to generate for each user")
 parser.add_argument("-e", "--execution", help="No. of times to execute (lower-upper bound) each function")
+parser.add_argument("-r", "--repetition", help="No. of repetition ")
 
 
 def generateCommands(seqNo, noOfUsers, noOfFunctionsMin, noOfFunctionsMax, noOfExecutionMin, noOfExecutionMax):
@@ -45,7 +46,6 @@ def generateCommands(seqNo, noOfUsers, noOfFunctionsMin, noOfFunctionsMax, noOfE
             seq_no = random.randrange(seqNo)
             func_id = random.randint(noOfFunctionsMin, noOfFunctionsMax)
             no_of_exec = random.randint(noOfExecutionMin, noOfExecutionMax)
-
             cmd_map = {"user": user_id, "func": func_id, "exec": no_of_exec}
             cmds_list = cmds_map.get(seq_no) or []
             cmds_list.append(cmd_map)
@@ -87,14 +87,18 @@ if __name__ == "__main__":
           "NoOfFunctions: " + str(noOfFunctionsMin) + "-" + str(noOfFunctionsMax),
           "NoOfExecutions: " + str(noOfExecutionMin) + "-" + str(noOfExecutionMax))
 
+    repetition = args.repetition or 1
+    repetition = int(repetition)
+
     cmds_map = generateCommands(seqNo, noOfUsers, noOfFunctionsMin, noOfFunctionsMax, noOfExecutionMin,
                                 noOfExecutionMax)
 
     with open(fileName, "w") as fwrite:
         for key, val in cmds_map.items():
-            for cmd_data in val:
-                fwrite.write(str(key) + ",")
-                fwrite.write(str(cmd_data.get("user")) + ",")
-                fwrite.write(str(cmd_data.get("func")) + ",")
-                fwrite.write(str(cmd_data.get("exec")))
-                fwrite.write("\n")
+            for _ in range(repetition):
+                for cmd_data in val:
+                    fwrite.write(str(key) + ",")
+                    fwrite.write(str(cmd_data.get("user")) + ",")
+                    fwrite.write(str(cmd_data.get("func")) + ",")
+                    fwrite.write(str(cmd_data.get("exec")))
+                    fwrite.write("\n")
