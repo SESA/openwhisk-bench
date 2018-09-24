@@ -69,3 +69,15 @@ func createOutputFile(inputFilePath string) os.File {
 	fmt.Println("Writing output to " + inputFilePath)
 	return *fileWriter
 }
+
+func printToStdOutOnVerbose(printTxt string) {
+	if verbose {
+		fmt.Println(printTxt)
+	}
+}
+
+func printToStdOutOnDebug(printTxt string) {
+	if debug {
+		fmt.Println(printTxt)
+	}
+}
