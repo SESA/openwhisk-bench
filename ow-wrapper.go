@@ -119,7 +119,7 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 			for user, funcList := range usersVsFuncsMap {
 				//userAuth := userVsAuthMap[user]
 				for funcName := range funcList {
-					execCmd([]string{"createFunction", user, strconv.Itoa(funcName), "funcs/spin.js"})
+					execCmd([]string{"createFunction", user, strconv.Itoa(funcName), "funcs/iter.js"})
 				}
 			}
 			if verbose {
