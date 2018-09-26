@@ -25,12 +25,15 @@ var outputFileWriter os.File
 
 var writeToFile bool
 var debug bool
+var rateLimit float64
+var currExecRate float64
 var startRun time.Time
 var verbose = true
 var isAsync = false
 var execCount = 0
+var concurrencyFactor int
 
-var orderArr = []string{BATCH, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, ELAPSED_TIME, ELAPSED_TIME_SINCE_START, SUBMITTED_AT, ENDED_AT, EXEC_RATE, PARAMETER}
+var orderArr = []string{BATCH, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, ELAPSED_TIME, ELAPSED_TIME_SINCE_START, SUBMITTED_AT, ENDED_AT, EXEC_RATE, CONCURRENCY_FACTOR, PARAMETER}
 
 func main() {
 	outputFilePath := flag.String("fileName", generateOutputFileName(), "Write output to file")
@@ -41,6 +44,8 @@ func main() {
 	flag.BoolVar(&verbose, "v", true, "Verbose output")
 	flag.BoolVar(&debug, "debug", false, "Debug output")
 	flag.BoolVar(&isAsync, "async", false, "Invoke functions asynchronously")
+	flag.IntVar(&concurrencyFactor, "cf", OPEN_WHISK_CONCURRENCY_FACTOR, "Sets OpenWhisk Concurrency Factor (Creates N co-routines to spawn commands to OpenWhisk")
+	flag.Float64Var(&rateLimit, "rateLimit", 0, "Rate Limiter to maintain the execution rate")
 
 	flag.Parse()
 
@@ -141,7 +146,7 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 		}
 	}
 
-	printToStdOutOnVerbose("Starting function invocations across " + strconv.Itoa(OPEN_WHISK_CONCURRENCY_FACTOR) + " co-routines:")
+	printToStdOutOnVerbose("Starting function invocations across " + strconv.Itoa(concurrencyFactor) + " co-routines:")
 	printToStdOutOnVerbose("------------------------------------------------------------------------")
 
 	if outputFilePath != "" {
@@ -167,7 +172,7 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 	}
 	sort.Ints(batchArr)
 
-	for i := 0; i < OPEN_WHISK_CONCURRENCY_FACTOR; i++ {
+	for i := 0; i < concurrencyFactor; i++ {
 		go invokeFunction()
 	}
 
@@ -193,6 +198,14 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 				wgTime.Add(1)
 				batchExecCount++
 				totalExecCount++
+
+				if rateLimit != 0.0 && currExecRate > rateLimit {
+					//sleepTime := int((currExecRate/(rateLimit*5))*1000)
+					//fmt.Println("Exec Count: " + strconv.Itoa(execCount) + ", Seq: " + strconv.Itoa(totalExecCount) + ", Exec Rate: " + strconv.FormatFloat(currExecRate, 'f', 2, 64) + ", Sleep Time: " + strconv.Itoa(sleepTime))
+					//time.Sleep(time.Duration(sleepTime) * time.Millisecond)
+					time.Sleep(500 * time.Millisecond)
+				}
+
 				cmdChan <- cmdMap
 			}
 		}
@@ -201,7 +214,7 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 
 		batchElapse := time.Since(startBatch)
 		printToStdOutOnVerbose("------------------------------------------------------------------------")
-		printToStdOutOnVerbose("Batch #" + strconv.Itoa(batchOfExecution) + " completed " + strconv.Itoa(batchExecCount) + " executions in" + strconv.FormatFloat(batchElapse.Seconds()*1000, 'f', 0, 64) + "  ms")
+		printToStdOutOnVerbose("Batch #" + strconv.Itoa(batchOfExecution) + " completed " + strconv.Itoa(batchExecCount) + " executions in " + strconv.FormatFloat(batchElapse.Seconds()*1000, 'f', 0, 64) + "  ms")
 		printToStdOutOnVerbose("------------------------------------------------------------------------")
 
 	}
@@ -240,10 +253,12 @@ func processResult(resultMap map[string]string) {
 	delete(resultMap, USER_AUTH)
 	elapsedTimeSinceStart := time.Since(startRun).Seconds() * 1000
 	resultMap[ELAPSED_TIME_SINCE_START] = strconv.FormatFloat(elapsedTimeSinceStart, 'f', 0, 64)
+	resultMap[CONCURRENCY_FACTOR] = strconv.Itoa(concurrencyFactor)
 
 	counterMtx.Lock()
 	execCount += 1
-	resultMap[EXEC_RATE] = strconv.FormatFloat(float64(execCount)/(elapsedTimeSinceStart/1000), 'f', 2, 64)
+	currExecRate = float64(execCount) / (elapsedTimeSinceStart / 1000)
+	resultMap[EXEC_RATE] = strconv.FormatFloat(currExecRate, 'f', 2, 64)
 	counterMtx.Unlock()
 
 	if writeToFile {
