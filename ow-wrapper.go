@@ -18,15 +18,19 @@ import (
 var userVsAuthMap = make(map[string]string)
 var activationList []map[string]string
 var cmdChan = make(chan map[string]string)
-var jobDoneChan = make(chan struct{})
 
 var wgTime = sync.WaitGroup{}
+var counterMtx sync.Mutex
 var outputFileWriter os.File
 
 var writeToFile bool
-var verbose = true
 var debug bool
+var startRun time.Time
+var verbose = true
 var isAsync = false
+var execCount = 0
+
+var orderArr = []string{BATCH, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, ELAPSED_TIME, ELAPSED_TIME_SINCE_START, SUBMITTED_AT, ENDED_AT, EXEC_RATE, PARAMETER}
 
 func main() {
 	outputFilePath := flag.String("fileName", generateOutputFileName(), "Write output to file")
@@ -142,25 +146,19 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 
 	if outputFilePath != "" {
 		outputFileWriter = createOutputFile(outputFilePath)
-		outputFileWriter.WriteString(BATCH + ", ")
-		outputFileWriter.WriteString(USER_ID + ", ")
-		outputFileWriter.WriteString(FUNCTION_ID + ", ")
-		outputFileWriter.WriteString(SEQ + ", ")
-		outputFileWriter.WriteString(CMD_RESULT + ", ")
-		outputFileWriter.WriteString(ELAPSED_TIME + ", ")
-		outputFileWriter.WriteString(SUBMITTED_AT + ", ")
-		outputFileWriter.WriteString(ENDED_AT + ", ")
-		outputFileWriter.WriteString(PARAMETER + "\n")
-	} else {
-		fmt.Print(BATCH + ", ")
-		fmt.Print(USER_ID + ", ")
-		fmt.Print(FUNCTION_ID + ", ")
-		fmt.Print(SEQ + ", ")
-		fmt.Print(CMD_RESULT + ", ")
-		fmt.Print(ELAPSED_TIME + ", ")
-		fmt.Print(SUBMITTED_AT + ", ")
-		fmt.Print(ENDED_AT + ", ")
-		fmt.Print(PARAMETER + "\n")
+	}
+
+	for i := 0; i < len(orderArr); i++ {
+		delimiter := ", "
+		if i == len(orderArr)-1 {
+			delimiter = "\n"
+		}
+
+		if outputFilePath != "" {
+			outputFileWriter.WriteString(orderArr[i] + delimiter)
+		} else {
+			fmt.Print(orderArr[i] + delimiter)
+		}
 	}
 
 	batchArr := make([]int, 0, len(batchVsUserFuncMap))
@@ -178,7 +176,7 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 	}
 
 	totalExecCount := 0
-	startRun := time.Now()
+	startRun = time.Now()
 	for _, batchOfExecution := range batchArr {
 		batchExecCount := 0
 		startBatch := time.Now()
@@ -203,16 +201,17 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 
 		batchElapse := time.Since(startBatch)
 		printToStdOutOnVerbose("------------------------------------------------------------------------")
-		printToStdOutOnVerbose("Batch #" + strconv.Itoa(batchOfExecution) + " completed " + strconv.Itoa(batchExecCount) + " executions in" + strconv.FormatFloat(batchElapse.Seconds()*1000, 'f', 0, 64) + " ms")
+		printToStdOutOnVerbose("Batch #" + strconv.Itoa(batchOfExecution) + " completed " + strconv.Itoa(batchExecCount) + " executions in" + strconv.FormatFloat(batchElapse.Seconds()*1000, 'f', 0, 64) + "  ms")
 		printToStdOutOnVerbose("------------------------------------------------------------------------")
 
 	}
 
-	close(jobDoneChan)
 	elapsed := time.Since(startRun)
+	elapsedTimeInMs := elapsed.Seconds() * 1000
 
-	printToStdOutOnVerbose("Total time:" + strconv.FormatFloat(elapsed.Seconds()*1000, 'f', 0, 64) + " ms")
+	printToStdOutOnVerbose("Total time: " + strconv.FormatFloat(elapsedTimeInMs, 'f', 0, 64) + " ms")
 	printToStdOutOnVerbose("Total executions: " + strconv.Itoa(totalExecCount))
+	printToStdOutOnVerbose("Execution Rate: " + strconv.FormatFloat(float64(totalExecCount)/(elapsedTimeInMs/1000), 'f', 2, 64))
 
 	outputFileWriter.Close()
 }
@@ -239,7 +238,13 @@ func execCmd(argsArr []string) string {
 
 func processResult(resultMap map[string]string) {
 	delete(resultMap, USER_AUTH)
-	orderArr := []string{BATCH, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, ELAPSED_TIME, SUBMITTED_AT, ENDED_AT, PARAMETER}
+	elapsedTimeSinceStart := time.Since(startRun).Seconds() * 1000
+	resultMap[ELAPSED_TIME_SINCE_START] = strconv.FormatFloat(elapsedTimeSinceStart, 'f', 0, 64)
+
+	counterMtx.Lock()
+	execCount += 1
+	resultMap[EXEC_RATE] = strconv.FormatFloat(float64(execCount)/(elapsedTimeSinceStart/1000), 'f', 2, 64)
+	counterMtx.Unlock()
 
 	if writeToFile {
 		writeMapToFile(outputFileWriter, resultMap, orderArr)
