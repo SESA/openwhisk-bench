@@ -122,16 +122,17 @@ function showStarts
 
 function countStarts
 {
-  echo -e "cold start:\t\t" $( showStarts cold | wc -l )
-  echo -e "prewarm start:\t\t" $( showStarts prewarm | wc -l )
+  echo -e "hot starts:\t\t" $( showStarts warm | grep -v prewarm  | wc -l )
+  echo -e "warm starts:\t\t" $( showStarts prewarm | wc -l )
+  echo -e "cold starts:\t\t" $( showStarts cold | wc -l )
   echo -e "recreated:\t\t" $( showStarts recreated  | wc -l )
-  echo -e "warm start:\t\t" $( showStarts warm | grep -v prewarm  | wc -l )
-  echo -e "total start:\t\t" $( showStarts | wc -l )
+  echo -e "total starts:\t\t" $( showStarts | wc -l )
 }
 
 function countAll
 {
   echo -e "containers:\t\t" $(countContainers nodejs) 
+  echo -e "           \t\t" $(countContainers Paused) "\t(paused)"
   countStarts
 }
 
