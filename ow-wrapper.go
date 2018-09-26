@@ -65,9 +65,6 @@ func main() {
 		fmt.Println("Exiting")
 		os.Exit(127)
 	}
-	if verbose {
-		fmt.Println("Execution Complete")
-	}
 	os.Exit(0)
 }
 
@@ -78,7 +75,7 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 	fread, _ := os.Open(inputFilePath)
 	scanner := bufio.NewScanner(fread)
 
-	timeVsUserFuncMap := make(map[int][]UserFuncs)
+	batchVsUserFuncMap := make(map[int][]UserFuncs)
 
 	{
 		var exists = struct{}{}
@@ -88,9 +85,9 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 		for scanner.Scan() {
 			lineParts := strings.Split(scanner.Text(), ",")
 			userFuncObj := createUserFuncsObj(lineParts)
-			userFuncArr := timeVsUserFuncMap[userFuncObj.Time]
+			userFuncArr := batchVsUserFuncMap[userFuncObj.Time]
 			userFuncArr = append(userFuncArr, userFuncObj)
-			timeVsUserFuncMap[userFuncObj.Time] = userFuncArr
+			batchVsUserFuncMap[userFuncObj.Time] = userFuncArr
 			uniqueUsersList[userFuncObj.UserID] = exists
 
 			if needCreation {
@@ -143,7 +140,7 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 
 	if outputFilePath != "" {
 		outputFileWriter = createOutputFile(outputFilePath)
-		outputFileWriter.WriteString(TIME + ", ")
+		outputFileWriter.WriteString(BATCH + ", ")
 		outputFileWriter.WriteString(USER_ID + ", ")
 		outputFileWriter.WriteString(FUNCTION_ID + ", ")
 		outputFileWriter.WriteString(SEQ + ", ")
@@ -153,7 +150,7 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 		outputFileWriter.WriteString(ENDED_AT + ", ")
 		outputFileWriter.WriteString(PARAMETER + "\n")
 	} else {
-		fmt.Print(TIME + ", ")
+		fmt.Print(BATCH + ", ")
 		fmt.Print(USER_ID + ", ")
 		fmt.Print(FUNCTION_ID + ", ")
 		fmt.Print(SEQ + ", ")
@@ -164,45 +161,53 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 		fmt.Print(PARAMETER + "\n")
 	}
 
-	timeArr := make([]int, 0, len(timeVsUserFuncMap))
-	for timeOfExecution := range timeVsUserFuncMap {
-		timeArr = append(timeArr, timeOfExecution)
+	batchArr := make([]int, 0, len(batchVsUserFuncMap))
+	for batchOfExecution := range batchVsUserFuncMap {
+		batchArr = append(batchArr, batchOfExecution)
 	}
-	sort.Ints(timeArr)
+	sort.Ints(batchArr)
 
 	for i := 0; i < OPEN_WHISK_CONCURRENCY_FACTOR; i++ {
 		go invokeFunction(outputFilePath != "")
 	}
 
-	start := time.Now()
-	for _, timeOfExecution := range timeArr {
-		for _, userFuncObj := range timeVsUserFuncMap[timeOfExecution] {
+	totalExecCount := 0
+	startRun := time.Now()
+	for _, batchOfExecution := range batchArr {
+		batchExecCount := 0
+		startBatch := time.Now()
+		for _, userFuncObj := range batchVsUserFuncMap[batchOfExecution] {
 			userAuth := userVsAuthMap[userFuncObj.UserID]
 			for i := 1; i <= userFuncObj.NoOfTimesToExecute; i++ {
 				cmdMap := make(map[string]string)
-				cmdMap[TIME] = strconv.Itoa(timeOfExecution)
+				cmdMap[BATCH] = strconv.Itoa(batchOfExecution)
 				cmdMap[USER_ID] = userFuncObj.UserID
 				cmdMap[USER_AUTH] = userAuth
 				cmdMap[FUNCTION_ID] = strconv.Itoa(userFuncObj.FunctionID)
 				cmdMap[PARAMETER] = userFuncObj.Param
-				cmdMap[SEQ] = strconv.Itoa(i)
+				cmdMap[SEQ] = strconv.Itoa(totalExecCount)
 				wgTime.Add(1)
+				batchExecCount++
+				totalExecCount++
 				cmdChan <- cmdMap
 			}
 		}
 
+		// Wait for all executions to finish
 		wgTime.Wait()
+
 		if verbose {
-			batch_elapse := time.Since(start)
+			batch_elapse := time.Since(startBatch)
 			fmt.Println("------------------------------------------------------------------------")
-			fmt.Println("Batch "+strconv.Itoa(timeOfExecution)+" jobs completed in", int(batch_elapse.Seconds()*1000), "ms")
+			fmt.Println("Batch #"+strconv.Itoa(batchOfExecution)+" completed "+strconv.Itoa(batchExecCount)+" executions in", int(batch_elapse.Seconds()*1000), "ms")
 			fmt.Println("------------------------------------------------------------------------")
 		}
 	}
-	elapsed := time.Since(start)
+	elapsed := time.Since(startRun)
 
 	if verbose {
-		fmt.Println("Total Run Time:", int(elapsed.Seconds()*1000))
+		fmt.Println("Total time:", int(elapsed.Seconds()*1000), "ms")
+		fmt.Println("Total executions: " + strconv.Itoa(totalExecCount))
 	}
 	outputFileWriter.Close()
 }
@@ -250,7 +255,7 @@ func invokeFunction(writeToFile bool) {
 		resultMap[ENDED_AT] = strconv.FormatInt(end, 10)
 		resultMap[ELAPSED_TIME] = strconv.FormatInt(elapsed, 10)
 
-		orderArr := []string{TIME, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, ELAPSED_TIME, SUBMITTED_AT, ENDED_AT, PARAMETER}
+		orderArr := []string{BATCH, USER_ID, FUNCTION_ID, SEQ, CMD_RESULT, ELAPSED_TIME, SUBMITTED_AT, ENDED_AT, PARAMETER}
 		if writeToFile {
 			writeMapToFile(outputFileWriter, resultMap, orderArr)
 		} else {
