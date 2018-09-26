@@ -13,6 +13,7 @@ const (
 	SUBMITTED_AT             = "StartTime"
 	ENDED_AT                 = "EndTime"
 	EXEC_RATE                = "ExecRate"
+	CONCURRENCY_FACTOR       = "ConcurrencyFactor"
 
 	OPEN_WHISK_CONCURRENCY_FACTOR = 64
 )
