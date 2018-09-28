@@ -119,8 +119,8 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 
 		if needCreation {
 			for user := range uniqueUsersList {
-				userCreationResult := execCmd([]string{"createUser", user})
-				userAuth := strings.Split(userCreationResult, " ")[1]
+				jsonStr := execCmd([]string{"createUser", user})
+				userAuth := strings.Split(parseJsonResponse(jsonStr), " ")[1]
 				userVsAuthMap[user] = userAuth
 			}
 
@@ -129,7 +129,8 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 			for user, funcList := range usersVsFuncsMap {
 				//userAuth := userVsAuthMap[user]
 				for funcName := range funcList {
-					execCmd([]string{"createFunction", user, strconv.Itoa(funcName), "funcs/iter.js"})
+					jsonStr := execCmd([]string{"createFunction", user, strconv.Itoa(funcName), "funcs/iter.js"})
+					parseJsonResponse(jsonStr)
 				}
 			}
 
@@ -137,8 +138,8 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 
 		} else {
 			for user := range uniqueUsersList {
-				userAuth := execCmd([]string{"getUserAuth", user})
-				userVsAuthMap[user] = userAuth
+				jsonStr := execCmd([]string{"getUserAuth", user})
+				userVsAuthMap[user] = parseJsonResponse(jsonStr)
 			}
 
 			printToStdOutOnVerbose("User-Auth Map Loaded.")
@@ -292,7 +293,9 @@ func invokeFunction() {
 			paramArr = append(paramArr, "--param", param)
 		}
 
-		execResult := execCmd(paramArr)
+		jsonStr := execCmd(paramArr)
+		execResult := parseJsonResponse(jsonStr)
+
 		end := time.Now().UnixNano()
 		elapsed := (end - start) / 1000000 /* nano to milli */
 
@@ -323,7 +326,8 @@ func getResult() {
 			activationID := resultMap[CMD_RESULT]
 
 			paramArr := []string{"getResultFromActivation", userAuth, activationID}
-			execResult := execCmd(paramArr)
+			jsonStr := execCmd(paramArr)
+			execResult := parseJsonResponse(jsonStr)
 
 			if execResult != "-1, -1, -1, -1" && len(strings.Split(execResult, ", ")) == 4 {
 				start, _ := strconv.ParseInt(resultMap[ELAPSED_TIME], 10, 64)

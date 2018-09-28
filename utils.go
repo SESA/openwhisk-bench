@@ -8,7 +8,11 @@ import (
 	"time"
 	"os"
 	"log"
+	"encoding/json"
+	"regexp"
 )
+
+var newLineRegex = regexp.MustCompile(`\r?\n`)
 
 func getIntFromStr(strVal string) int {
 	intVal, err := strconv.Atoi(strVal)
@@ -80,4 +84,20 @@ func printToStdOutOnDebug(printTxt string) {
 	if debug {
 		fmt.Println(printTxt)
 	}
+}
+
+func parseJsonResponse(jsonStr string) string {
+	jsonStr = newLineRegex.ReplaceAllString(jsonStr, " ")
+	var jsonResp map[string]interface{}
+	err := json.Unmarshal([]byte(jsonStr), &jsonResp)
+	if err != nil {
+		panic(err)
+	}
+
+	output := jsonResp["output"]
+	if jsonResp["status"] == "FAIL" {
+		panic(fmt.Errorf("Bash error - %s", output))
+	}
+
+	return output.(string)
 }
