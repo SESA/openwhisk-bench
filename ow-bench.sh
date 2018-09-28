@@ -19,6 +19,7 @@
 #			CLEAR = clear the screen between runs
 #			DEBUG = print full commands
 #set -x
+set -o pipefail
 export WSKCLI=${WSK_CLI:=wsk}
 export WSKADMIN=${WSK_ADMIN:=wskadmin}
 export WSKLOG=${WSK_INVOKER_LOG:=/tmp/wsklogs/invoker0/invoker0_logs.log}
@@ -142,22 +143,31 @@ function createUser
 {
     seed=$1
 
-	output=`wskAdmin user create $seed`
+	output=$(bash -c "wskadmin user create $seed" 2>&1)
+	retVal=$?
+	status=""
 
 	if [ "$output" = "Namespace already exists" ]; then
 		output=`getUserAuth $seed`
+		status=$(echo $output | jq -r '.status')
+		output=$(echo $output | jq -r '.output')
 	fi;
 
-	echo $seed $output
+	if [ "$status" = "" ]; then
+	    if [ $retVal -eq 0 ]; then
+            status="OK"
+        else
+            status="FAIL"
+        fi
+	fi
+
+	echo -e "{\"status\":\"$status\", \"output\":\"$seed $output\"}"
 }
 
 function randomUser
 {
 	createUser $RANDOM
 }
-
-
-
 
 function createFunction
 {
@@ -168,10 +178,18 @@ function createFunction
     fi
  
     local user_name=$1
-    local user_auth=$(wskadmin user get $user_name)
-    local action_name=$2
 
+    output=`getUserAuth $user_name`
+    status=$(echo $output | jq -r '.status')
+    if [ "$status" = "FAIL" ]; then
+        echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
+        return
+    fi
+    local user_auth=$(echo $output | jq -r '.output')
+
+    local action_name=$2
     local action_func=$3
+
     if [ -z "$action_func" ];
     then
         action_func="$TMPDIR/wsk_fun_$action_name.js"
@@ -180,15 +198,16 @@ function createFunction
         echo "function main() { return {payload: 'RANDOM $seed'}; }" > $action_func
     fi
 
-    wskCli --auth $user_auth action create --timeout 300000 $action_name $action_func > /dev/null
-
+    output=$(bash -c "wsk -i --apihost $WSKHOST --auth $user_auth action create --timeout 300000 $action_name $action_func" 2>&1)
     if [ $? -eq 0 ]; then
-	    echo $action_name
+	    status="OK"
+	    output=$action_name
+    else
+        status="FAIL"
     fi
+
+    echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
 }
-
-
-
 
 function randomFunction
 {
@@ -231,15 +250,33 @@ function updateFunction
     wsk -i --apihost $WSKHOST --auth $user_auth action update $action_name $action_func
 }
 
-
-
+#function execCmdFromGo {
+#    functionToInvoke=$1
+#    shift
+#
+#    output=`${functionToInvoke} $@`
+#    if [ $? -eq 0 ]; then
+#	    status="OK"
+#	else
+#	    status="FAIL"
+#	fi
+#	echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
+#}
 
 function getUserAuth {
-	local user=$1
+	user=$1
 	if [ -z "$user" ]; then
 		user=$WSKUSER
 	fi
-	echo $( wskAdmin user get $user )
+
+	output=$(bash -c "wskadmin user get $user" 2>&1)
+	if [ $? -eq 0 ]; then
+	    status="OK"
+	else
+	    status="FAIL"
+	fi
+	output="${output//\"/\'}"
+	echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
 }
 
 # getInvokeTime
@@ -247,8 +284,16 @@ function getUserAuth {
 #	Returns <wait_time> <init_time> <run_time>
 function getInvokeTime
 {
-	OUTPUT=$(bash -c "$WSKCLI -i --apihost $WSKHOST action invoke -b $@ | tail -n +2" 2>&1)
-    parseOutput "$OUTPUT"
+	output=$(bash -c "wsk -i --apihost $WSKHOST action invoke -b $@" 2>&1)
+	if [ $? -eq 0 ]; then
+	    status="OK"
+	    output=$(printf '%s' "$output" | tail -n +2)
+	    output=`parseOutput "$output"`
+	else
+	    status="FAIL"
+	fi
+
+	echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
 }
 
 
@@ -262,30 +307,25 @@ function parseOutput
 
     OUTPUT=$1
 
-    if [[ $OUTPUT == error* ]]; then
-        echo "$OUTPUT" > /dev/stderr
-        echo -1, -1, -1, -1
-    else
-        init_t=0
+    init_t=0
 
-        len=$(echo $OUTPUT | jq -r '.annotations | length')
-        run_t=$( echo $OUTPUT | jq -r '.duration' )
+    len=$(echo $OUTPUT | jq -r '.annotations | length')
+    run_t=$( echo $OUTPUT | jq -r '.duration' )
 
-        if [[ $len -eq 4 ]]; then # WARM/HOT START
-            wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[3]' | jq -r '.value' )
-        elif [[ $len -eq 5 ]]; then #COLD START
-            wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[1]' | jq -r '.value' )
-            init_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[4]' | jq -r '.value' )
-        elif [[ $len -eq 2 ]]; then #SEUSS RETURN
-            wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[0]' | jq -r '.value' )
-            init_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[1]' | jq -r '.value' )
-        fi
-
-        aid=$( echo $OUTPUT | jq -r '.activationId' )
-        duration_t=`expr ${run_t} - ${init_t}`
-
-        echo ${aid}, ${wait_t}, ${init_t}, ${duration_t}
+    if [[ $len -eq 4 ]]; then # WARM/HOT START
+        wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[3]' | jq -r '.value' )
+    elif [[ $len -eq 5 ]]; then #COLD START
+        wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[1]' | jq -r '.value' )
+        init_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[4]' | jq -r '.value' )
+    elif [[ $len -eq 2 ]]; then #SEUSS RETURN
+        wait_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[0]' | jq -r '.value' )
+        init_t=$( echo $OUTPUT | jq -r '.annotations' | jq -r '.[1]' | jq -r '.value' )
     fi
+
+    aid=$( echo $OUTPUT | jq -r '.activationId' )
+    duration_t=`expr ${run_t} - ${init_t}`
+
+    echo ${aid}, ${wait_t}, ${init_t}, ${duration_t}
 }
 
 
@@ -301,8 +341,11 @@ function invokeFunction
     fi
 
     local user_auth=$(wskadmin user get $user_name)
-
-    invokeFunctionWithAuth false $user_auth $@
+    if [ $user_auth -eq 0 ]; then
+	    invokeFunctionWithAuth false $user_auth $@
+	else
+	    echo $user_auth
+	fi
 }
 
 
@@ -384,15 +427,17 @@ function invokeFunctionWithAuth {
 
 function invokeAndGetActivationID
 {
-    OUTPUT=$(bash -c "$WSKCLI -i --apihost $WSKHOST action invoke $@" 2>&1)
+    output=$(bash -c "$WSKCLI -i --apihost $WSKHOST action invoke $@" 2>&1)
 
-    if [[ $OUTPUT == error* ]]; then
-        echo "$OUTPUT" > /dev/stderr
-        echo -1
-    else
-        IFS=' ' read -r -a arr <<< "$OUTPUT"
-        echo ${arr[${#arr[@]}-1]}
-    fi
+    if [ $? -eq 0 ]; then
+	    status="OK"
+	    IFS=' ' read -r -a arr <<< "$output"
+        output=${arr[${#arr[@]}-1]}
+	else
+	    status="FAIL"
+	fi
+
+	echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
 }
 
 
@@ -413,8 +458,16 @@ function getResultFromActivation
     user_auth=$1
     activation_id=$2
 
-    OUTPUT=$(bash -c "$WSKCLI -i --apihost $WSKHOST -u $user_auth activation get $activation_id | tail -n +2" 2>&1)
-    parseOutput "$OUTPUT"
+    output=$(bash -c "$WSKCLI -i --apihost $WSKHOST -u $user_auth activation get $activation_id" 2>&1)
+	if [ $? -eq 0 ]; then
+	    status="OK"
+	    output=$(printf '%s' "$output" | tail -n +2)
+	    output=`parseOutput "$output"`
+	else
+	    status="FAIL"
+	fi
+
+	echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
 }
 
 
