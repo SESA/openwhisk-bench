@@ -94,10 +94,10 @@ func parseJsonResponse(jsonStr string) string {
 		panic(err)
 	}
 
-	output := jsonResp["output"]
-	if jsonResp["status"] == "FAIL" {
+	output := jsonResp["output"].(string)
+	if jsonResp["status"] == "FAIL" && !strings.Contains(output, "resource already exists") {
 		panic(fmt.Errorf("Bash error - %s", output))
 	}
 
-	return output.(string)
+	return output
 }
