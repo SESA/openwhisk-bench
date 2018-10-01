@@ -13,6 +13,12 @@ import (
 )
 
 var newLineRegex = regexp.MustCompile(`\r?\n`)
+var exists struct{}
+var errorMsgsToSkip = map[string]struct{}{
+	"resource already exists":  exists,
+	"request timed out":        exists,
+	"Document update conflict": exists,
+}
 
 func getIntFromStr(strVal string) int {
 	intVal, err := strconv.Atoi(strVal)
@@ -86,16 +92,27 @@ func printToStdOutOnDebug(printTxt string) {
 	}
 }
 
+func shouldPanic(output string) bool {
+	for msg := range errorMsgsToSkip {
+		if strings.Contains(output, msg) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func parseJsonResponse(jsonStr string) string {
 	jsonStr = newLineRegex.ReplaceAllString(jsonStr, " ")
 	var jsonResp map[string]interface{}
 	err := json.Unmarshal([]byte(jsonStr), &jsonResp)
 	if err != nil {
+		fmt.Println("-----\n" + jsonStr + "\n-----")
 		panic(err)
 	}
 
 	output := jsonResp["output"].(string)
-	if jsonResp["status"] == "FAIL" && !strings.Contains(output, "resource already exists") {
+	if jsonResp["status"] == "FAIL" && shouldPanic(output) {
 		panic(fmt.Errorf("Bash error - %s", output))
 	}
 

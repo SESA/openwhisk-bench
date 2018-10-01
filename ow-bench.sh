@@ -161,6 +161,7 @@ function createUser
         fi
 	fi
 
+    output="${output//\"/\'}"
 	echo -e "{\"status\":\"$status\", \"output\":\"$seed $output\"}"
 }
 
@@ -182,7 +183,7 @@ function createFunction
     output=`getUserAuth $user_name`
     status=$(echo $output | jq -r '.status')
     if [ "$status" = "FAIL" ]; then
-        echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
+        echo ${output}
         return
     fi
     local user_auth=$(echo $output | jq -r '.output')
@@ -206,6 +207,7 @@ function createFunction
         status="FAIL"
     fi
 
+    output="${output//\"/\'}"
     echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
 }
 
@@ -293,6 +295,7 @@ function getInvokeTime
 	    status="FAIL"
 	fi
 
+    output="${output//\"/\'}"
 	echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
 }
 
@@ -437,6 +440,7 @@ function invokeAndGetActivationID
 	    status="FAIL"
 	fi
 
+    output="${output//\"/\'}"
 	echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
 }
 
@@ -467,6 +471,7 @@ function getResultFromActivation
 	    status="FAIL"
 	fi
 
+    output="${output//\"/\'}"
 	echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
 }
 
