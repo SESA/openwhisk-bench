@@ -30,6 +30,7 @@ var currExecRate float64
 var startRun time.Time
 var verbose = true
 var isAsync = false
+var runForever = false
 var execCount = 0
 var concurrencyFactor int
 
@@ -44,6 +45,7 @@ func main() {
 	flag.BoolVar(&verbose, "v", true, "Verbose output")
 	flag.BoolVar(&debug, "debug", false, "Debug output")
 	flag.BoolVar(&isAsync, "async", false, "Invoke functions asynchronously")
+	flag.BoolVar(&runForever, "forever", false, "Run forever till the user sends stop signal")
 	flag.IntVar(&concurrencyFactor, "cf", OPEN_WHISK_CONCURRENCY_FACTOR, "Sets OpenWhisk Concurrency Factor (Creates N co-routines to spawn commands to OpenWhisk")
 	flag.Float64Var(&rateLimit, "rateLimit", 0, "Rate Limiter to maintain the execution rate")
 
@@ -86,7 +88,11 @@ func main() {
 func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation bool) {
 	printToStdOutOnVerbose("Parsing File: " + inputFilePath)
 
-	fread, _ := os.Open(inputFilePath)
+	fread, err := os.Open(inputFilePath)
+	if err != nil {
+		panic(fmt.Errorf("File error - %s", err))
+	}
+
 	scanner := bufio.NewScanner(fread)
 
 	batchVsUserFuncMap := make(map[int][]UserFuncs)
@@ -115,36 +121,7 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 			}
 		}
 
-		printToStdOutOnVerbose("Creation Needed: " + strconv.FormatBool(needCreation))
-
-		if needCreation {
-			for user := range uniqueUsersList {
-				jsonStr := execCmd([]string{"createUser", user})
-				userAuth := strings.Split(parseJsonResponse(jsonStr), " ")[1]
-				userVsAuthMap[user] = userAuth
-			}
-
-			printToStdOutOnVerbose("User Creation Done.")
-
-			for user, funcList := range usersVsFuncsMap {
-				//userAuth := userVsAuthMap[user]
-				for funcName := range funcList {
-					jsonStr := execCmd([]string{"createFunction", user, strconv.Itoa(funcName), "funcs/iter.js"})
-					parseJsonResponse(jsonStr)
-				}
-			}
-
-			printToStdOutOnVerbose("Function Creation Done.")
-
-		} else {
-			for user := range uniqueUsersList {
-				jsonStr := execCmd([]string{"getUserAuth", user})
-				userVsAuthMap[user] = parseJsonResponse(jsonStr)
-			}
-
-			printToStdOutOnVerbose("User-Auth Map Loaded.")
-
-		}
+		doInitialization(needCreation, uniqueUsersList, usersVsFuncsMap)
 	}
 
 	printToStdOutOnVerbose("Starting function invocations across " + strconv.Itoa(concurrencyFactor) + " co-routines:")
@@ -183,41 +160,47 @@ func execCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 
 	totalExecCount := 0
 	startRun = time.Now()
-	for _, batchOfExecution := range batchArr {
-		batchExecCount := 0
-		startBatch := time.Now()
-		for _, userFuncObj := range batchVsUserFuncMap[batchOfExecution] {
-			userAuth := userVsAuthMap[userFuncObj.UserID]
-			for i := 1; i <= userFuncObj.NoOfTimesToExecute; i++ {
-				cmdMap := make(map[string]string)
-				cmdMap[BATCH] = strconv.Itoa(batchOfExecution)
-				cmdMap[USER_ID] = userFuncObj.UserID
-				cmdMap[USER_AUTH] = userAuth
-				cmdMap[FUNCTION_ID] = strconv.Itoa(userFuncObj.FunctionID)
-				cmdMap[PARAMETER] = userFuncObj.Param
-				cmdMap[SEQ] = strconv.Itoa(totalExecCount)
-				wgTime.Add(1)
-				batchExecCount++
-				totalExecCount++
+	for {
+		for _, batchOfExecution := range batchArr {
+			batchExecCount := 0
+			startBatch := time.Now()
+			for _, userFuncObj := range batchVsUserFuncMap[batchOfExecution] {
+				userAuth := userVsAuthMap[userFuncObj.UserID]
+				for i := 1; i <= userFuncObj.NoOfTimesToExecute; i++ {
+					cmdMap := make(map[string]string)
+					cmdMap[BATCH] = strconv.Itoa(batchOfExecution)
+					cmdMap[USER_ID] = userFuncObj.UserID
+					cmdMap[USER_AUTH] = userAuth
+					cmdMap[FUNCTION_ID] = strconv.Itoa(userFuncObj.FunctionID)
+					cmdMap[PARAMETER] = userFuncObj.Param
+					cmdMap[SEQ] = strconv.Itoa(totalExecCount)
+					wgTime.Add(1)
+					batchExecCount++
+					totalExecCount++
 
-				if rateLimit != 0.0 && currExecRate > rateLimit {
-					//sleepTime := int((currExecRate/(rateLimit*5))*1000)
-					//fmt.Println("Exec Count: " + strconv.Itoa(execCount) + ", Seq: " + strconv.Itoa(totalExecCount) + ", Exec Rate: " + strconv.FormatFloat(currExecRate, 'f', 2, 64) + ", Sleep Time: " + strconv.Itoa(sleepTime))
-					//time.Sleep(time.Duration(sleepTime) * time.Millisecond)
-					time.Sleep(500 * time.Millisecond)
+					if rateLimit != 0.0 && currExecRate > rateLimit {
+						//sleepTime := int((currExecRate/(rateLimit*5))*1000)
+						//fmt.Println("Exec Count: " + strconv.Itoa(execCount) + ", Seq: " + strconv.Itoa(totalExecCount) + ", Exec Rate: " + strconv.FormatFloat(currExecRate, 'f', 2, 64) + ", Sleep Time: " + strconv.Itoa(sleepTime))
+						//time.Sleep(time.Duration(sleepTime) * time.Millisecond)
+						time.Sleep(500 * time.Millisecond)
+					}
+
+					cmdChan <- cmdMap
 				}
-
-				cmdChan <- cmdMap
 			}
+
+			wgTime.Wait()
+
+			batchElapse := time.Since(startBatch)
+			printToStdOutOnVerbose("------------------------------------------------------------------------")
+			printToStdOutOnVerbose("Batch #" + strconv.Itoa(batchOfExecution) + " completed " + strconv.Itoa(batchExecCount) + " executions in " + strconv.FormatFloat(batchElapse.Seconds()*1000, 'f', 0, 64) + "  ms")
+			printToStdOutOnVerbose("------------------------------------------------------------------------")
+
 		}
 
-		wgTime.Wait()
-
-		batchElapse := time.Since(startBatch)
-		printToStdOutOnVerbose("------------------------------------------------------------------------")
-		printToStdOutOnVerbose("Batch #" + strconv.Itoa(batchOfExecution) + " completed " + strconv.Itoa(batchExecCount) + " executions in " + strconv.FormatFloat(batchElapse.Seconds()*1000, 'f', 0, 64) + "  ms")
-		printToStdOutOnVerbose("------------------------------------------------------------------------")
-
+		if !runForever {
+			break
+		}
 	}
 
 	elapsed := time.Since(startRun)
@@ -266,6 +249,92 @@ func processResult(resultMap map[string]string) {
 		writeMapToFile(outputFileWriter, resultMap, orderArr)
 	} else {
 		writeMapToOut(resultMap, orderArr)
+	}
+}
+
+func doExecAndParse(paramArr []string, retryCount int) string {
+	jsonStr := execCmd(paramArr)
+	parsedJson := parseJsonResponse(jsonStr)
+	if strings.Contains(parsedJson, "request timed out") {
+		if retryCount > 0 {
+			doExecAndParse(paramArr, retryCount-1)
+		} else {
+			panic(fmt.Errorf("Timeout error - %s", parsedJson))
+		}
+	}
+
+	return parsedJson
+}
+
+func doInitialization(needCreation bool, uniqueUsersList map[string]struct{}, usersVsFuncsMap map[string]map[int]struct{}) {
+	printToStdOutOnVerbose("Creation Needed: " + strconv.FormatBool(needCreation))
+
+	var concChan = make(chan int, concurrencyFactor)
+
+	if needCreation {
+		startTime := time.Now()
+		for user := range uniqueUsersList {
+			concChan <- 1
+			wgTime.Add(1)
+
+			go func(user string) {
+				parsedJson := doExecAndParse([]string{"createUser", user}, 10)
+				userAuth := strings.Split(parsedJson, " ")[1]
+
+				counterMtx.Lock()
+				userVsAuthMap[user] = userAuth
+				counterMtx.Unlock()
+
+				wgTime.Done()
+				<-concChan
+			}(user)
+		}
+
+		wgTime.Wait()
+		printToStdOutOnVerbose(strconv.Itoa(len(uniqueUsersList)) + " users created. Time taken = " + time.Since(startTime).String())
+
+		totalFuncsCreated := 0
+		startTime = time.Now()
+		for user, funcList := range usersVsFuncsMap {
+			//userAuth := userVsAuthMap[user]
+			for funcName := range funcList {
+				concChan <- 1
+				wgTime.Add(1)
+
+				go func(user string, funcName int) {
+					doExecAndParse([]string{"createFunction", user, strconv.Itoa(funcName), "funcs/iter.js"}, 5)
+
+					wgTime.Done()
+					<-concChan
+				}(user, funcName)
+			}
+
+			totalFuncsCreated += len(funcList)
+			printToStdOutOnDebug(strconv.Itoa(len(funcList)) + " functions created for " + user)
+		}
+
+		wgTime.Wait()
+		printToStdOutOnVerbose(strconv.Itoa(totalFuncsCreated) + " functions created. Time taken = " + time.Since(startTime).String())
+	} else {
+		startTime := time.Now()
+		for user := range uniqueUsersList {
+			concChan <- 1
+			wgTime.Add(1)
+
+			go func(user string) {
+				userAuth := doExecAndParse([]string{"getUserAuth", user}, 10)
+
+				counterMtx.Lock()
+				userVsAuthMap[user] = userAuth
+				counterMtx.Unlock()
+
+				wgTime.Done()
+				<-concChan
+			}(user)
+		}
+
+		wgTime.Wait()
+		printToStdOutOnVerbose(strconv.Itoa(len(uniqueUsersList)) + " users are loaded with their auth details. Time taken = " + time.Since(startTime).String())
 	}
 }
 
