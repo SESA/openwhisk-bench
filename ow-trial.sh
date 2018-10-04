@@ -59,9 +59,9 @@ function DoRun
   local NAME=$(/bin/bash -c "echo $1 | /usr/bin/cut -d '/' -f 2")
   local FN=$TRIALID
   if [[ -n $SEUSS ]]; then
-    FN="$TRIALID/seuss_$NAME"
+    FN="$TRIALPATH/seuss_$NAME"
   else 
-    FN="$TRIALID/linux_$NAME"
+    FN="$TRIALPATH/linux_$NAME"
   fi
   
   CMDR touch $FN
