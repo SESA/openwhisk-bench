@@ -64,6 +64,7 @@ function DoRun
     FN="$TRIALID/linux_$NAME"
   fi
   
+  CMDR touch $FN
   CMDR $OWWRAP --create --writeToFile --fileName $FN execFile $1
   
   #if successful
