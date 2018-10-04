@@ -15,5 +15,5 @@ const (
 	EXEC_RATE                = "ExecRate"
 	CONCURRENCY_FACTOR       = "ConcurrencyFactor"
 
-	OPEN_WHISK_CONCURRENCY_FACTOR = 64
+	OPEN_WHISK_CONCURRENCY_FACTOR = 24
 )
