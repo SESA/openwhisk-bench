@@ -1,15 +1,14 @@
-package main
+package commons
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
-	"bytes"
-	"fmt"
 	"time"
-	"os"
-	"log"
-	"encoding/json"
-	"regexp"
 )
 
 var newLineRegex = regexp.MustCompile(`\r?\n`)
@@ -20,7 +19,15 @@ var errorMsgsToSkip = map[string]struct{}{
 	"Document update conflict": exists,
 }
 
-func getIntFromStr(strVal string) int {
+var Debug bool
+var WriteToFile bool
+var RateLimit float64
+var ConcurrencyFactor int
+var RunForever = false
+var Verbose = true
+var OutputFileWriter os.File
+
+func GetIntFromStr(strVal string) int {
 	intVal, err := strconv.Atoi(strVal)
 	if err != nil {
 		panic(err)
@@ -33,7 +40,7 @@ func delFromSlice(slice []interface{}, idxToDelete int) []interface{} {
 	return append(slice[:idxToDelete], slice[idxToDelete+1:]...)
 }
 
-func copyMap(mapToBeCopied map[string]string) map[string]string {
+func CopyMap(mapToBeCopied map[string]string) map[string]string {
 	targetMap := make(map[string]string)
 
 	for key, value := range mapToBeCopied {
@@ -43,12 +50,12 @@ func copyMap(mapToBeCopied map[string]string) map[string]string {
 	return targetMap
 }
 
-func writeMapToFile(fileName os.File, writeMap map[string]string, printOrder []string) {
-	printTxt := writeMapToOut(writeMap, printOrder) + "\n"
-	fileName.WriteString(printTxt)
+func WriteMapToFile(writeMap map[string]string, printOrder []string) {
+	printTxt := WriteMapToOut(writeMap, printOrder) + "\n"
+	OutputFileWriter.WriteString(printTxt)
 }
 
-func writeMapToOut(writeMap map[string]string, printOrder []string) string {
+func WriteMapToOut(writeMap map[string]string, printOrder []string) string {
 	var buffer bytes.Buffer
 
 	for _, key := range printOrder {
@@ -60,34 +67,53 @@ func writeMapToOut(writeMap map[string]string, printOrder []string) string {
 	}
 
 	printTxt := strings.TrimSpace(buffer.String())
-	fmt.Println(printTxt)
+	PrintToStdOutOnVerbose(printTxt)
 	return printTxt
 }
 
-func generateOutputFileName() string {
+func PrintHeader(printOrder []string, outputFilePath string) {
+	var buffer bytes.Buffer
+
+	for i := 0; i < len(printOrder); i++ {
+		delimiter := ", "
+		if i == len(printOrder)-1 {
+			delimiter = "\n"
+		}
+
+		if outputFilePath != "" {
+			OutputFileWriter.WriteString(printOrder[i] + delimiter)
+		}
+		buffer.WriteString(printOrder[i] + delimiter)
+	}
+
+	printTxt := strings.TrimSpace(buffer.String())
+	PrintToStdOutOnVerbose(printTxt)
+}
+
+func GenerateOutputFileName() string {
 	executionTime := time.Now()
 	outputFileName := "cmds_" + strconv.Itoa(executionTime.Year()) + "_" + executionTime.Month().String() + "_" + strconv.Itoa(executionTime.Day()) + "_" + strconv.Itoa(executionTime.Hour()) + "_" + strconv.Itoa(executionTime.Minute()) + "_" + strconv.Itoa(executionTime.Second()) + "_output.csv"
 	return outputFileName
 }
 
-func createOutputFile(inputFilePath string) os.File {
+func CreateOutputFile(inputFilePath string) os.File {
 	fileWriter, err := os.OpenFile(inputFilePath, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatal("Cannot create file", err)
+		panic(fmt.Errorf("Cannot create file - %s", err))
 	}
 
-	fmt.Println("Writing output to " + inputFilePath)
+	PrintToStdOutOnVerbose("Writing output to " + inputFilePath)
 	return *fileWriter
 }
 
-func printToStdOutOnVerbose(printTxt string) {
-	if verbose {
+func PrintToStdOutOnVerbose(printTxt string) {
+	if Verbose {
 		fmt.Println(printTxt)
 	}
 }
 
-func printToStdOutOnDebug(printTxt string) {
-	if debug {
+func PrintToStdOutOnDebug(printTxt string) {
+	if Debug {
 		fmt.Println(printTxt)
 	}
 }
@@ -102,7 +128,7 @@ func shouldPanic(output string) bool {
 	return true
 }
 
-func parseJsonResponse(jsonStr string) string {
+func ParseJsonResponse(jsonStr string) string {
 	jsonStr = newLineRegex.ReplaceAllString(jsonStr, " ")
 	var jsonResp map[string]interface{}
 	err := json.Unmarshal([]byte(jsonStr), &jsonResp)
@@ -117,4 +143,13 @@ func parseJsonResponse(jsonStr string) string {
 	}
 
 	return output
+}
+
+func ValueInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }

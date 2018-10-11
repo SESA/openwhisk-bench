@@ -1,0 +1,23 @@
+create:
+  {id: 1, followers: [start, rm]}
+
+run:
+  {id: 2, followers: [pause, stop]}
+
+exec:
+  {id: 3, followers: [pause, stop]}
+
+start:
+  {id: 4, followers: [stop]}
+
+stop:
+  {id: 5, followers: [start, rm]}
+
+pause:
+  {id: 6, followers: [unpause, stop]}
+
+unpause:
+  {id: 7, followers: [pause, stop]}
+
+rm:
+  {id: 8, followers: [run]}
