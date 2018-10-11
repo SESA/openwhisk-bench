@@ -1,6 +1,7 @@
-package main
+package openwhisk
 
 import (
+	"../commons"
 	"fmt"
 	"strconv"
 )
@@ -23,7 +24,7 @@ func createUserFuncsObj(contents []string) UserFuncs {
 	}
 
 	userFuncObj := UserFuncs{
-		Time: getIntFromStr(contents[0]),
+		Time: commons.GetIntFromStr(contents[0]),
 		UserID: func() string {
 			if _, err := strconv.Atoi(contents[1]); err == nil {
 				return "user_" + contents[1]
@@ -31,8 +32,8 @@ func createUserFuncsObj(contents []string) UserFuncs {
 				return contents[1]
 			}
 		}(),
-		FunctionID: getIntFromStr(contents[2]),
-		NoOfTimesToExecute: getIntFromStr(func() string {
+		FunctionID: commons.GetIntFromStr(contents[2]),
+		NoOfTimesToExecute: commons.GetIntFromStr(func() string {
 			if len(contents) == 4 {
 				return contents[3]
 			} else {

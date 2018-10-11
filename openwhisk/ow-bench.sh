@@ -344,7 +344,7 @@ function invokeFunction
     fi
 
     local user_auth=$(wskadmin user get $user_name)
-    if [ $user_auth -eq 0 ]; then
+    if [ $? -eq 0 ]; then
 	    invokeFunctionWithAuth false $user_auth $@
 	else
 	    echo $user_auth
