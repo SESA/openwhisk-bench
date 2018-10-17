@@ -11,7 +11,7 @@ export OWWRAP=${OW_WRAP:="go run *.go -q "}
 export TRIALDATADIR=${TRIAL_DATA_DIR:=$PWD/data}
 
 export CMDPREFIX=${CMD_PREFIX:=""}
-export CMDPOSTFIX=${CMD_POSTFIX:="&> /dev/null"}
+export CMDPOSTFIX=${CMD_POSTFIX:=""}
 
 if [[ ! -z $DEBUG ]]; then set -x; fi
 
@@ -34,7 +34,7 @@ function SingleTrial
   TrialInit
 
   echo "$SECONDS: Booting OpenWhisk..."
-  CMDR $OWDEPLOY Boot 
+  CMDR $OWDEPLOY Boot > $TRIALLOG
 
   LAST_FILE=""
   for f in $FILES
@@ -44,7 +44,7 @@ function SingleTrial
   	        echo "$SECONDS: Processing batch file $LAST_FILE"
    		DoRun $TPATH$LAST_FILE; 
    		echo "$SECONDS: Rebooting OpenWhisk..."
-   		CMDR $OWDEPLOY Reboot 
+   		CMDR $OWDEPLOY Reboot > $TRIALLOG
   	fi
   	LAST_FILE=$f
   done
@@ -54,7 +54,7 @@ function SingleTrial
    	DoRun $TPATH$LAST_FILE; 
   fi
   echo "$SECONDS: Shutting down OpenWhisk..."
-  CMDR $OWDEPLOY Shutdown 
+  CMDR $OWDEPLOY Shutdown > $TRIALLOG
   local ELAPSED_TIME=$(($SECONDS - $START_TIME))
   echo "$SECONDS: Finished Trial in $ELAPSED_TIME seconds"
 }
@@ -63,9 +63,11 @@ function TrialInit
 {
   if [[ -z $TRIALID ]]; then
     export TRIALID=$(/bin/date +%d-%m-%y-%H:%M)
-    export TRIALPATH=$TRIALDATADIR/$TRIALID
   fi
+  export TRIALPATH=$TRIALDATADIR/$TRIALID
+  export TRIALLOG=$TRIALPATH/trial.log
   CMDR mkdir -p $TRIALPATH 
+  CMDR touch $TRIALLOG
 }
 
 function DoRun 
@@ -79,7 +81,7 @@ function DoRun
   CMDR touch $FN
   echo -e "\t $FN"
   local START_TIME=$SECONDS
-  CMDR $OWWRAP --create --writeToFile --fileName $FN execFile $1
+  CMDR $OWWRAP --create --writeToFile --fileName $FN execFile $1 > $TRIALLOG
   local ELAPSED_TIME=$(($SECONDS - $START_TIME))
   echo -e "\tRun finished in $ELAPSED_TIME seconds"
 }
