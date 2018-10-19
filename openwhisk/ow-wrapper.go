@@ -236,7 +236,7 @@ func doInitialization(needCreation bool, uniqueUsersList map[string]struct{}, us
 				wgTime.Add(1)
 
 				go func(user string, funcName int) {
-					doExecAndParse([]string{"createFunction", user, strconv.Itoa(funcName), "openwhisk/funcs/iter.js"}, 5)
+					doExecAndParse([]string{"createFunction", user, strconv.Itoa(funcName), "openwhisk/funcs/spin.js"}, 5)
 
 					wgTime.Done()
 					<-concChan
