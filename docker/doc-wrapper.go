@@ -23,6 +23,7 @@ var counterMtx sync.Mutex
 var currExecRate float64
 var startRun time.Time
 var execCount = 0
+var errInGoRoutine interface{}
 
 var orderArr = []string{commons.BATCH, commons.SEQ, commons.CONTAINER_NAME, commons.DOCKER_CMD, commons.ELAPSED_TIME, commons.ELAPSED_TIME_SINCE_START, commons.SUBMITTED_AT, commons.ENDED_AT, commons.EXEC_RATE, commons.CONCURRENCY_FACTOR, commons.PARAMETER}
 
@@ -77,6 +78,10 @@ func ExecCmdsFromFile(inputFilePath string, outputFilePath string) {
 			batchExecCount := 0
 			startBatch := time.Now()
 			for _, dockerFuncObj := range batchVsDockerFuncMap[batchOfExecution] {
+				if errInGoRoutine != nil {
+					panic(errInGoRoutine)
+				}
+
 				cmdMap := make(map[string]string)
 				cmdMap[commons.BATCH] = strconv.Itoa(batchOfExecution)
 				cmdMap[commons.CONTAINER_NAME] = dockerFuncObj.ContainerName
@@ -91,6 +96,10 @@ func ExecCmdsFromFile(inputFilePath string, outputFilePath string) {
 			}
 
 			wgTime.Wait()
+
+			if errInGoRoutine != nil {
+				panic(errInGoRoutine)
+			}
 
 			batchElapse := time.Since(startBatch)
 			commons.PrintToStdOutOnVerbose("------------------------------------------------------------------------")
@@ -115,12 +124,15 @@ func ExecCmdsFromFile(inputFilePath string, outputFilePath string) {
 
 func cleanUpDocker() {
 	commons.PrintToStdOutOnVerbose("Cleaning up created containers during the experiment!")
+
+	counterMtx.Lock()
 	for container, prevCmd := range containerPrevCmdMap {
 		if prevCmd != commons.CONT_CMD_REMOVE {
 			ExecCmd([]string{"stop", container})
 			ExecCmd([]string{"rm", container})
 		}
 	}
+	counterMtx.Unlock()
 
 	commons.PrintToStdOutOnVerbose("Clean up completed!")
 }
@@ -165,6 +177,13 @@ func processResult(resultMap map[string]string) {
 }
 
 func invokeCommand() {
+	defer func() {
+		if r := recover(); r != nil {
+			errInGoRoutine = r
+			wgTime.Done()
+		}
+	}()
+
 	for cmdMap := range cmdChan {
 		containerName := cmdMap[commons.CONTAINER_NAME]
 		dockerCmd := cmdMap[commons.DOCKER_CMD]
@@ -182,18 +201,17 @@ func invokeCommand() {
 		}
 
 		counterMtx.Lock()
-
 		containerPrevCmd, ok := containerPrevCmdMap[containerName]
 		if !ok {
 			containerPrevCmd = commons.CONT_CMD_REMOVE
 		}
 
 		allowedCmds := dockerGraphMap[containerPrevCmd].Followers
+		counterMtx.Unlock()
+
 		if !commons.ValueInSlice(dockerCmd, allowedCmds) {
 			panic("Docker Error: Cannot run the command - " + dockerCmd + " as docker's previous command is " + containerPrevCmd)
 		}
-
-		counterMtx.Unlock()
 
 		start := time.Now().UnixNano()
 		execResult := ExecCmd(paramArr)
@@ -212,10 +230,11 @@ func invokeCommand() {
 		resultMap[commons.ENDED_AT] = strconv.FormatInt(end, 10)
 		resultMap[commons.ELAPSED_TIME] = strconv.FormatInt(elapsed, 10)
 		processResult(resultMap)
-		wgTime.Done()
 
 		if strings.HasPrefix(execResult, "error") {
 			panic(fmt.Errorf("Error during execution - %s", execResult))
 		}
+
+		wgTime.Done()
 	}
 }
