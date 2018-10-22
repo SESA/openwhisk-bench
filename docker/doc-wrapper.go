@@ -131,7 +131,7 @@ func TestCreationForever(outputFilePath string, imageID string) {
 	commons.PrintToStdOutOnVerbose("------------------------------------------------------------------------")
 
 	if outputFilePath != "" {
-		outputFilePath = "openwhisk/" + outputFilePath
+		outputFilePath = "docker/" + outputFilePath
 		commons.OutputFileWriter = commons.CreateOutputFile(outputFilePath)
 	}
 
@@ -185,7 +185,7 @@ func cleanUpDocker() {
 	commons.PrintToStdOutOnVerbose("Clean up completed!")
 }
 
-/* execute single openwhisk cli command with argsArr arguments */
+/* execute single docker cli command with argsArr arguments */
 func ExecCmd(argsArr []string) string {
 	var buffer bytes.Buffer
 	buffer.WriteString("docker container ")
