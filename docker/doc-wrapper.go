@@ -55,7 +55,7 @@ func ExecCmdsFromFile(inputFilePath string, outputFilePath string) {
 	commons.PrintToStdOutOnVerbose("------------------------------------------------------------------------")
 
 	if outputFilePath != "" {
-		outputFilePath = "openwhisk/" + outputFilePath
+		outputFilePath = "docker/" + outputFilePath
 		commons.OutputFileWriter = commons.CreateOutputFile(outputFilePath)
 	}
 
