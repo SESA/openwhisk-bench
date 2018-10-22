@@ -122,6 +122,54 @@ func ExecCmdsFromFile(inputFilePath string, outputFilePath string) {
 	commons.OutputFileWriter.Close()
 }
 
+func TestCreationForever(outputFilePath string, imageID string) {
+	defer cleanUpDocker()
+
+	parseYAML()
+
+	commons.PrintToStdOutOnVerbose("Starting docker benchmark across 1 co-routine:")
+	commons.PrintToStdOutOnVerbose("------------------------------------------------------------------------")
+
+	if outputFilePath != "" {
+		outputFilePath = "openwhisk/" + outputFilePath
+		commons.OutputFileWriter = commons.CreateOutputFile(outputFilePath)
+	}
+
+	commons.PrintHeader(orderArr, outputFilePath)
+
+	go invokeCommand()
+
+	totalExecCount := 0
+	startRun = time.Now()
+	for {
+		if errInGoRoutine != nil {
+			panic(errInGoRoutine)
+		}
+
+		cmdMap := make(map[string]string)
+		cmdMap[commons.BATCH] = strconv.Itoa(totalExecCount)
+		cmdMap[commons.CONTAINER_NAME] = "cont_" + strconv.Itoa(totalExecCount)
+		cmdMap[commons.DOCKER_CMD] = "run"
+		cmdMap[commons.PARAMETER] = "-t -d " + imageID
+		cmdMap[commons.SEQ] = strconv.Itoa(totalExecCount)
+		wgTime.Add(1)
+		totalExecCount++
+
+		cmdChan <- cmdMap
+
+		wgTime.Wait()
+	}
+
+	elapsed := time.Since(startRun)
+	elapsedTimeInMs := elapsed.Seconds() * 1000
+
+	commons.PrintToStdOutOnVerbose("Total time: " + strconv.FormatFloat(elapsedTimeInMs, 'f', 0, 64) + " ms")
+	commons.PrintToStdOutOnVerbose("Total executions: " + strconv.Itoa(totalExecCount))
+	commons.PrintToStdOutOnVerbose("Execution Rate: " + strconv.FormatFloat(float64(totalExecCount)/(elapsedTimeInMs/1000), 'f', 2, 64))
+
+	commons.OutputFileWriter.Close()
+}
+
 func cleanUpDocker() {
 	commons.PrintToStdOutOnVerbose("Cleaning up created containers during the experiment!")
 

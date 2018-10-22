@@ -56,6 +56,8 @@ func main() {
 		fmt.Println(docker.ExecCmd(argsArr[1:]))
 	case "execDockerFile":
 		docker.ExecCmdsFromFile(argsArr[1], *outputFilePath)
+	case "testDockerCreateForever":
+		docker.TestCreationForever(*outputFilePath, argsArr[1])
 	default:
 		fmt.Println("Command not found: " + argsArr[0])
 		fmt.Println("Exiting")
