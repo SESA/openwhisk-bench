@@ -173,15 +173,24 @@ func TestCreationForever(outputFilePath string, imageID string) {
 func cleanUpDocker() {
 	commons.PrintToStdOutOnVerbose("Cleaning up created containers during the experiment!")
 
-	counterMtx.Lock()
+	var concChan = make(chan int, commons.ConcurrencyFactor)
+
 	for container, prevCmd := range containerPrevCmdMap {
 		if prevCmd != commons.CONT_CMD_REMOVE {
-			ExecCmd([]string{"kill", container})
-			ExecCmd([]string{"rm", container})
+			concChan <- 1
+			wgTime.Add(1)
+
+			go func(container string) {
+				ExecCmd([]string{"kill", container})
+				ExecCmd([]string{"rm", container})
+
+				wgTime.Done()
+				<-concChan
+			} (container)
 		}
 	}
-	counterMtx.Unlock()
 
+	wgTime.Wait()
 	commons.PrintToStdOutOnVerbose("Clean up completed!")
 }
 
