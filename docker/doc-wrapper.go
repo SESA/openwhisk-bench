@@ -176,7 +176,7 @@ func cleanUpDocker() {
 	counterMtx.Lock()
 	for container, prevCmd := range containerPrevCmdMap {
 		if prevCmd != commons.CONT_CMD_REMOVE {
-			ExecCmd([]string{"stop", container})
+			ExecCmd([]string{"kill", container})
 			ExecCmd([]string{"rm", container})
 		}
 	}
