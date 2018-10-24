@@ -2,22 +2,25 @@ create:
   {id: 1, followers: [start, rm]}
 
 run:
-  {id: 2, followers: [pause, stop]}
+  {id: 2, followers: [pause, stop, kill]}
 
 exec:
-  {id: 3, followers: [pause, stop]}
+  {id: 3, followers: [pause, stop, kill]}
 
 start:
-  {id: 4, followers: [stop]}
+  {id: 4, followers: [stop, kill]}
 
 stop:
   {id: 5, followers: [start, rm]}
 
 pause:
-  {id: 6, followers: [unpause, stop]}
+  {id: 6, followers: [unpause, stop, kill]}
 
 unpause:
-  {id: 7, followers: [pause, stop]}
+  {id: 7, followers: [pause, stop, kill]}
 
 rm:
   {id: 8, followers: [run]}
+
+kill:
+  {id: 9, followers: [start, rm]}
