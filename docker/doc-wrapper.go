@@ -23,9 +23,10 @@ var counterMtx sync.Mutex
 var currExecRate float64
 var startRun time.Time
 var execCount = 0
+var isCleanUpStarted = false
 var errInGoRoutine interface{}
 
-var orderArr = []string{commons.BATCH, commons.SEQ, commons.CONTAINER_NAME, commons.DOCKER_CMD, commons.ELAPSED_TIME, commons.ELAPSED_TIME_SINCE_START, commons.SUBMITTED_AT, commons.ENDED_AT, commons.EXEC_RATE, commons.CONCURRENCY_FACTOR, commons.PARAMETER}
+var orderArr = []string{commons.BATCH, commons.SEQ, commons.CONTAINER_NAME, commons.DOCKER_CMD, commons.ELAPSED_TIME, commons.ELAPSED_TIME_SINCE_START, commons.SUBMITTED_AT, commons.ENDED_AT, commons.EXEC_RATE, commons.RECEIVED_BYTES, commons.TRANSMITTED_BYTES, commons.CONCURRENCY_FACTOR, commons.PARAMETER}
 
 func ExecCmdsFromFile(inputFilePath string, outputFilePath string) {
 	defer cleanUpDocker()
@@ -55,7 +56,7 @@ func ExecCmdsFromFile(inputFilePath string, outputFilePath string) {
 	commons.PrintToStdOutOnVerbose("------------------------------------------------------------------------")
 
 	if outputFilePath != "" {
-		outputFilePath = "docker/" + outputFilePath
+		outputFilePath = "~/openwhisk-bench/docker/" + outputFilePath
 		commons.OutputFileWriter = commons.CreateOutputFile(outputFilePath)
 	}
 
@@ -131,7 +132,7 @@ func TestCreationForever(outputFilePath string, imageID string) {
 	commons.PrintToStdOutOnVerbose("------------------------------------------------------------------------")
 
 	if outputFilePath != "" {
-		outputFilePath = "docker/" + outputFilePath
+		outputFilePath = "~/openwhisk-bench/docker/" + outputFilePath
 		commons.OutputFileWriter = commons.CreateOutputFile(outputFilePath)
 	}
 
@@ -172,6 +173,7 @@ func TestCreationForever(outputFilePath string, imageID string) {
 
 func cleanUpDocker() {
 	commons.PrintToStdOutOnVerbose("Cleaning up created containers during the experiment!")
+	isCleanUpStarted = true
 
 	var concChan = make(chan int, commons.ConcurrencyFactor)
 
@@ -191,6 +193,7 @@ func cleanUpDocker() {
 	}
 
 	wgTime.Wait()
+	isCleanUpStarted = false
 	commons.PrintToStdOutOnVerbose("Clean up completed!")
 }
 
@@ -208,7 +211,7 @@ func ExecCmd(argsArr []string) string {
 	commons.PrintToStdOutOnDebug(args)
 
 	cmdOut, err := exec.Command("/bin/sh", "-c", args).CombinedOutput()
-	if err != nil {
+	if err != nil && !isCleanUpStarted {
 		panic(fmt.Errorf("Docker error - %s", cmdOut))
 	}
 
@@ -270,10 +273,17 @@ func invokeCommand() {
 			panic("Docker Error: Cannot run the command - " + dockerCmd + " as docker's previous command is " + containerPrevCmd)
 		}
 
+		networkDataStart := commons.GetNetworkUsage()
 		start := time.Now().UnixNano()
+
 		execResult := ExecCmd(paramArr)
+
 		end := time.Now().UnixNano()
+		networkDataEnd := commons.GetNetworkUsage()
+
 		elapsed := (end - start) / 1000000 /* nano to milli */
+		receivedBytes := networkDataEnd[0] - networkDataStart[0]
+		transmittedBytes := networkDataEnd[1] - networkDataStart[1]
 
 		counterMtx.Lock()
 		containerPrevCmdMap[containerName] = dockerCmd
@@ -286,6 +296,8 @@ func invokeCommand() {
 
 		resultMap[commons.ENDED_AT] = strconv.FormatInt(end, 10)
 		resultMap[commons.ELAPSED_TIME] = strconv.FormatInt(elapsed, 10)
+		resultMap[commons.RECEIVED_BYTES] = strconv.FormatInt(receivedBytes, 10)
+		resultMap[commons.TRANSMITTED_BYTES] = strconv.FormatInt(transmittedBytes, 10)
 		processResult(resultMap)
 
 		if strings.HasPrefix(execResult, "error") {

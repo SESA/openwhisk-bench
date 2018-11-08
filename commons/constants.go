@@ -11,6 +11,8 @@ const (
 	ENDED_AT                 = "EndTime"
 	EXEC_RATE                = "ExecRate"
 	CONCURRENCY_FACTOR       = "ConcurrencyFactor"
+	RECEIVED_BYTES = "BytesReceived"
+	TRANSMITTED_BYTES = "BytesTransmitted"
 
 	OPEN_WHISK_CONCURRENCY_FACTOR = 64
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -59,6 +60,10 @@ func WriteMapToOut(writeMap map[string]string, printOrder []string) string {
 	var buffer bytes.Buffer
 
 	for _, key := range printOrder {
+		if ConcurrencyFactor != 1 && (key == RECEIVED_BYTES || key == TRANSMITTED_BYTES) {
+			continue
+		}
+
 		if buffer.Len() > 0 {
 			buffer.WriteString(", ")
 		}
@@ -75,6 +80,10 @@ func PrintHeader(printOrder []string, outputFilePath string) {
 	var buffer bytes.Buffer
 
 	for i := 0; i < len(printOrder); i++ {
+		if ConcurrencyFactor != 1 && (printOrder[i] == RECEIVED_BYTES || printOrder[i] == TRANSMITTED_BYTES) {
+			continue
+		}
+
 		delimiter := ", "
 		if i == len(printOrder)-1 {
 			delimiter = "\n"
@@ -143,6 +152,35 @@ func ParseJsonResponse(jsonStr string) string {
 	}
 
 	return output
+}
+
+func GetNetworkUsage() []int64 {
+	cmdOut, err := exec.Command("ifconfig", "eno1").Output()
+	if err != nil {
+		panic(fmt.Errorf("Docker error - %s", err))
+	}
+
+	cmdOutStr := string(cmdOut)
+	re := regexp.MustCompile("bytes:(.*?) \\(")
+	lines := strings.Split(cmdOutStr, "\n")
+	var networkData []int64
+
+	for line := range lines {
+		if !strings.Contains(lines[line], "bytes") {
+			continue
+		}
+
+		match := re.FindAllStringSubmatch(lines[line], -1)
+		for _, i := range match {
+			val, err := strconv.ParseInt(i[1], 10, 64)
+			if err != nil {
+				panic(fmt.Errorf("Docker error - %s", err))
+			}
+			networkData = append(networkData, val)
+		}
+	}
+
+	return networkData
 }
 
 func ValueInSlice(a string, list []string) bool {
