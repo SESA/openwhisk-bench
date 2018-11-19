@@ -295,6 +295,8 @@ function getInvokeTime
 	    status="ERROR"
 	    readarray -t outputLines <<<"$output"
 	    if [[ ${#outputLines[@]} -gt 1 ]] && [[ ${outputLines[0]} =~ ^ok:[[:space:]]invoked[[:space:]].*[[:space:]]with[[:space:]]id[[:space:]][a-z0-9]*$ ]]; then
+		fileName=`date +%s%N | cut -b1-13`
+        	echo "$output" > "err_$fileName.txt"
 	        output=$(printf '%s' "$output" | tail -n +2)
 	        output=`parseOutput "$output"`
 	    fi

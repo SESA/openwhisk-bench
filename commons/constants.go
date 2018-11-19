@@ -14,7 +14,7 @@ const (
 	RECEIVED_BYTES           = "BytesReceived"
 	TRANSMITTED_BYTES        = "BytesTransmitted"
 
-	OPEN_WHISK_CONCURRENCY_FACTOR = 64
+	OPEN_WHISK_CONCURRENCY_FACTOR = 24
 
 	// Open Whisk Contants
 	USER_ID     = "UserID"

@@ -72,7 +72,6 @@ func ExecCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 	commons.PrintToStdOutOnVerbose("------------------------------------------------------------------------")
 
 	if outputFilePath != "" {
-		outputFilePath = "openwhisk/" + outputFilePath
 		commons.OutputFileWriter = commons.CreateOutputFile(outputFilePath)
 	}
 

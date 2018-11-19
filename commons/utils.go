@@ -18,6 +18,7 @@ var errorMsgsToSkip = map[string]struct{}{
 	"resource already exists":  exists,
 	"request timed out":        exists,
 	"Document update conflict": exists,
+	"but the request has not yet finished": exists,
 }
 
 var Debug bool
@@ -154,6 +155,10 @@ func ParseJsonResponse(jsonStr string) (string, string) {
 	output := jsonResp["output"].(string)
 	if status == "ERROR" && shouldPanic(output) {
 		panic(fmt.Errorf("Bash error - %s", output))
+	}
+
+	if strings.Contains(output, "but the request has not yet finished") {
+		output = "0, 0, 0, 0"
 	}
 
 	return status, output
