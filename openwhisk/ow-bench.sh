@@ -157,7 +157,7 @@ function createUser
 	    if [ $retVal -eq 0 ]; then
             status="OK"
         else
-            status="FAIL"
+            status="ERROR"
         fi
 	fi
 
@@ -182,7 +182,7 @@ function createFunction
 
     output=`getUserAuth $user_name`
     status=$(echo $output | jq -r '.status')
-    if [ "$status" = "FAIL" ]; then
+    if [ "$status" = "ERROR" ]; then
         echo ${output}
         return
     fi
@@ -204,7 +204,7 @@ function createFunction
 	    status="OK"
 	    output=$action_name
     else
-        status="FAIL"
+        status="ERROR"
     fi
 
     output="${output//\"/\'}"
@@ -260,7 +260,7 @@ function updateFunction
 #    if [ $? -eq 0 ]; then
 #	    status="OK"
 #	else
-#	    status="FAIL"
+#	    status="ERROR"
 #	fi
 #	echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
 #}
@@ -275,7 +275,7 @@ function getUserAuth {
 	if [ $? -eq 0 ]; then
 	    status="OK"
 	else
-	    status="FAIL"
+	    status="ERROR"
 	fi
 	output="${output//\"/\'}"
 	echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
@@ -292,7 +292,12 @@ function getInvokeTime
 	    output=$(printf '%s' "$output" | tail -n +2)
 	    output=`parseOutput "$output"`
 	else
-	    status="FAIL"
+	    status="ERROR"
+	    readarray -t outputLines <<<"$output"
+	    if [[ ${#outputLines[@]} -gt 1 ]] && [[ ${outputLines[0]} =~ ^ok:[[:space:]]invoked[[:space:]].*[[:space:]]with[[:space:]]id[[:space:]][a-z0-9]*$ ]]; then
+	        output=$(printf '%s' "$output" | tail -n +2)
+	        output=`parseOutput "$output"`
+	    fi
 	fi
 
     output="${output//\"/\'}"
@@ -437,7 +442,7 @@ function invokeAndGetActivationID
 	    IFS=' ' read -r -a arr <<< "$output"
         output=${arr[${#arr[@]}-1]}
 	else
-	    status="FAIL"
+	    status="ERROR"
 	fi
 
     output="${output//\"/\'}"
@@ -468,7 +473,7 @@ function getResultFromActivation
 	    output=$(printf '%s' "$output" | tail -n +2)
 	    output=`parseOutput "$output"`
 	else
-	    status="FAIL"
+	    status="ERROR"
 	fi
 
     output="${output//\"/\'}"

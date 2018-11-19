@@ -27,7 +27,7 @@ var startRun time.Time
 var IsAsync = false
 var execCount = 0
 
-var orderArr = []string{commons.BATCH, commons.USER_ID, commons.FUNCTION_ID, commons.SEQ, commons.CMD_RESULT, commons.ELAPSED_TIME, commons.ELAPSED_TIME_SINCE_START, commons.SUBMITTED_AT, commons.ENDED_AT, commons.EXEC_RATE, commons.CONCURRENCY_FACTOR, commons.PARAMETER}
+var orderArr = []string{commons.BATCH, commons.USER_ID, commons.FUNCTION_ID, commons.SEQ, commons.CMD_RESULT, commons.ELAPSED_TIME, commons.ELAPSED_TIME_SINCE_START, commons.SUBMITTED_AT, commons.ENDED_AT, commons.EXEC_RATE, commons.CMD_STATUS, commons.CONCURRENCY_FACTOR, commons.PARAMETER}
 
 func ExecCmdsFromFile(inputFilePath string, outputFilePath string, needCreation bool) {
 	commons.PrintToStdOutOnVerbose("Parsing File: " + inputFilePath)
@@ -188,7 +188,7 @@ func processResult(resultMap map[string]string) {
 
 func doExecAndParse(paramArr []string, retryCount int) string {
 	jsonStr := ExecCmd(paramArr)
-	parsedJson := commons.ParseJsonResponse(jsonStr)
+	_, parsedJson := commons.ParseJsonResponse(jsonStr)
 	if strings.Contains(parsedJson, "request timed out") {
 		if retryCount > 0 {
 			doExecAndParse(paramArr, retryCount-1)
@@ -297,12 +297,13 @@ func invokeFunction() {
 		}
 
 		jsonStr := ExecCmd(paramArr)
-		execResult := commons.ParseJsonResponse(jsonStr)
+		status, execResult := commons.ParseJsonResponse(jsonStr)
 
 		end := time.Now().UnixNano()
 		elapsed := (end - start) / 1000000 /* nano to milli */
 
 		resultMap := commons.CopyMap(cmdMap)
+		resultMap[commons.CMD_STATUS] = status
 		resultMap[commons.CMD_RESULT] = execResult
 		resultMap[commons.SUBMITTED_AT] = strconv.FormatInt(start, 10)
 
@@ -330,13 +331,14 @@ func getResult() {
 
 			paramArr := []string{"getResultFromActivation", userAuth, activationID}
 			jsonStr := ExecCmd(paramArr)
-			execResult := commons.ParseJsonResponse(jsonStr)
+			status, execResult := commons.ParseJsonResponse(jsonStr)
 
 			if execResult != "-1, -1, -1, -1" && len(strings.Split(execResult, ", ")) == 4 {
 				start, _ := strconv.ParseInt(resultMap[commons.ELAPSED_TIME], 10, 64)
 				end := time.Now().UnixNano()
 				elapsed := (end - start) / 1000000 /* nano to milli */
 
+				resultMap[commons.CMD_STATUS] = status
 				resultMap[commons.CMD_RESULT] = execResult
 				resultMap[commons.ENDED_AT] = strconv.FormatInt(end, 10)
 				resultMap[commons.ELAPSED_TIME] = strconv.FormatInt(elapsed, 10)

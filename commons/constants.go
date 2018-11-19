@@ -11,8 +11,8 @@ const (
 	ENDED_AT                 = "EndTime"
 	EXEC_RATE                = "ExecRate"
 	CONCURRENCY_FACTOR       = "ConcurrencyFactor"
-	RECEIVED_BYTES = "BytesReceived"
-	TRANSMITTED_BYTES = "BytesTransmitted"
+	RECEIVED_BYTES           = "BytesReceived"
+	TRANSMITTED_BYTES        = "BytesTransmitted"
 
 	OPEN_WHISK_CONCURRENCY_FACTOR = 64
 
@@ -21,6 +21,7 @@ const (
 	USER_AUTH   = "UserAuth"
 	FUNCTION_ID = "FunctionID"
 	CMD_RESULT  = "ActivationId, WaitTime, InitTime, RunTime"
+	CMD_STATUS  = "CmdStatus"
 
 	// Docker Contants
 	CONTAINER_NAME = "ContainerName"

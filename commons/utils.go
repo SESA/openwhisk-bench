@@ -128,6 +128,10 @@ func PrintToStdOutOnDebug(printTxt string) {
 }
 
 func shouldPanic(output string) bool {
+	if len(strings.Split(output, ", ")) == 4 {
+		return false
+	}
+
 	for msg := range errorMsgsToSkip {
 		if strings.Contains(output, msg) {
 			return false
@@ -137,7 +141,7 @@ func shouldPanic(output string) bool {
 	return true
 }
 
-func ParseJsonResponse(jsonStr string) string {
+func ParseJsonResponse(jsonStr string) (string, string) {
 	jsonStr = newLineRegex.ReplaceAllString(jsonStr, " ")
 	var jsonResp map[string]interface{}
 	err := json.Unmarshal([]byte(jsonStr), &jsonResp)
@@ -146,12 +150,13 @@ func ParseJsonResponse(jsonStr string) string {
 		panic(err)
 	}
 
+	status := jsonResp["status"].(string)
 	output := jsonResp["output"].(string)
-	if jsonResp["status"] == "FAIL" && shouldPanic(output) {
+	if status == "ERROR" && shouldPanic(output) {
 		panic(fmt.Errorf("Bash error - %s", output))
 	}
 
-	return output
+	return status, output
 }
 
 func GetNetworkUsage() []int64 {
