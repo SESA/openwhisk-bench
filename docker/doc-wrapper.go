@@ -23,6 +23,7 @@ var counterMtx sync.Mutex
 var currExecRate float64
 var startRun time.Time
 var execCount = 0
+var CheckMemStats = -1
 var isCleanUpStarted = false
 var errInGoRoutine interface{}
 
@@ -56,7 +57,7 @@ func ExecCmdsFromFile(inputFilePath string, outputFilePath string) {
 	commons.PrintToStdOutOnVerbose("------------------------------------------------------------------------")
 
 	if outputFilePath != "" {
-		outputFilePath = "~/openwhisk-bench/docker/" + outputFilePath
+		outputFilePath = "docker/" + outputFilePath
 		commons.OutputFileWriter = commons.CreateOutputFile(outputFilePath)
 	}
 
@@ -89,6 +90,7 @@ func ExecCmdsFromFile(inputFilePath string, outputFilePath string) {
 				cmdMap[commons.DOCKER_CMD] = dockerFuncObj.Cmd
 				cmdMap[commons.PARAMETER] = dockerFuncObj.Param
 				cmdMap[commons.SEQ] = strconv.Itoa(totalExecCount)
+
 				wgTime.Add(1)
 				batchExecCount++
 				totalExecCount++
@@ -113,14 +115,20 @@ func ExecCmdsFromFile(inputFilePath string, outputFilePath string) {
 		}
 	}
 
+	printMemStats()
+
 	elapsed := time.Since(startRun)
 	elapsedTimeInMs := elapsed.Seconds() * 1000
 
-	commons.PrintToStdOutOnVerbose("Total time: " + strconv.FormatFloat(elapsedTimeInMs, 'f', 0, 64) + " ms")
+	printTxt := "Total time: " + strconv.FormatFloat(elapsedTimeInMs, 'f', 0, 64) + " ms"
+	commons.PrintToStdOutOnVerbose(printTxt)
+	if commons.WriteToFile {
+		commons.OutputFileWriter.WriteString(printTxt)
+	}
 	commons.PrintToStdOutOnVerbose("Total executions: " + strconv.Itoa(totalExecCount))
 	commons.PrintToStdOutOnVerbose("Execution Rate: " + strconv.FormatFloat(float64(totalExecCount)/(elapsedTimeInMs/1000), 'f', 2, 64))
 
-	commons.OutputFileWriter.Close()
+	_ = commons.OutputFileWriter.Close()
 }
 
 func TestCreationForever(outputFilePath string, imageID string) {
@@ -160,15 +168,21 @@ func TestCreationForever(outputFilePath string, imageID string) {
 
 		wgTime.Wait()
 	}
+}
 
-	elapsed := time.Since(startRun)
-	elapsedTimeInMs := elapsed.Seconds() * 1000
+func printMemStats() {
+	cmdOut, err := exec.Command("/bin/sh", "-c", "free -h | grep -v 'Swap'").CombinedOutput()
+	if err != nil {
+		panic(fmt.Errorf("Error - %s", cmdOut))
+	}
 
-	commons.PrintToStdOutOnVerbose("Total time: " + strconv.FormatFloat(elapsedTimeInMs, 'f', 0, 64) + " ms")
-	commons.PrintToStdOutOnVerbose("Total executions: " + strconv.Itoa(totalExecCount))
-	commons.PrintToStdOutOnVerbose("Execution Rate: " + strconv.FormatFloat(float64(totalExecCount)/(elapsedTimeInMs/1000), 'f', 2, 64))
+	printTxt := strings.Trim(string(cmdOut), " \n")
 
-	commons.OutputFileWriter.Close()
+	fmt.Println(printTxt)
+	printTxt += "\n"
+	if commons.WriteToFile {
+		commons.OutputFileWriter.WriteString(printTxt)
+	}
 }
 
 func cleanUpDocker() {
@@ -183,8 +197,7 @@ func cleanUpDocker() {
 			wgTime.Add(1)
 
 			go func(container string) {
-				ExecCmd([]string{"kill", container})
-				ExecCmd([]string{"rm", container})
+				ExecCmd([]string{"rm -f", container})
 
 				wgTime.Done()
 				<-concChan
@@ -224,6 +237,10 @@ func processResult(resultMap map[string]string) {
 	resultMap[commons.CONCURRENCY_FACTOR] = strconv.Itoa(commons.ConcurrencyFactor)
 
 	counterMtx.Lock()
+	if CheckMemStats > 0 && (execCount % CheckMemStats) == 0 {
+		printMemStats()
+	}
+
 	execCount += 1
 	currExecRate = float64(execCount) / (elapsedTimeSinceStart / 1000)
 	resultMap[commons.EXEC_RATE] = strconv.FormatFloat(currExecRate, 'f', 2, 64)

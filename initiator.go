@@ -20,11 +20,14 @@ func main() {
 	flag.BoolVar(&commons.Debug, "debug", false, "Debug output")
 	flag.BoolVar(&commons.RunForever, "forever", false, "Run forever till the user sends stop signal")
 	flag.IntVar(&commons.ConcurrencyFactor, "cf", commons.OPEN_WHISK_CONCURRENCY_FACTOR, "Sets OpenWhisk Concurrency Factor (Creates N co-routines to spawn commands to OpenWhisk")
-	flag.Float64Var(&commons.RateLimit, "rateLimit", 0, "Rate Limiter to maintain the execution rate")
 
 	// Flags for open-whisk
+	flag.Float64Var(&commons.RateLimit, "rateLimit", 0, "Rate Limiter to maintain the execution rate")
 	isCreateFlag := flag.Bool("create", false, "Create functions before execution")
 	flag.BoolVar(&openwhisk.IsAsync, "async", false, "Invoke functions asynchronously")
+
+	// Flags for docker
+	flag.IntVar(&docker.CheckMemStats, "memCheckInterval", -1, "Check Memory Stats Periodically")
 
 	flag.Parse()
 
