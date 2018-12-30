@@ -77,7 +77,7 @@ def generateCommands(seqNo, noOfContainersMin, noOfContainersMax, imgs):
 
             if docker_cmd == CMD_RUN:
                 img = random.choice(imgs)
-                cmd_map["param"] = "-t -d " + img
+                cmd_map["param"] = "-d --cpu-shares 0 --memory 256m --oom-kill-disable --network bridge -e __OW_API_HOST=https://0.0.0.0:443 openwhisk/nodejs4action:latest"
 
             container_status_map[cont_name] = docker_cmd
             cmds_list = cmds_map.get(seq) or []

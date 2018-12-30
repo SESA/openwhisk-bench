@@ -290,17 +290,17 @@ func invokeCommand() {
 			panic("Docker Error: Cannot run the command - " + dockerCmd + " as docker's previous command is " + containerPrevCmd)
 		}
 
-		networkDataStart := commons.GetNetworkUsage()
+		//networkDataStart := commons.GetNetworkUsage()
 		start := time.Now().UnixNano()
 
 		execResult := ExecCmd(paramArr)
 
 		end := time.Now().UnixNano()
-		networkDataEnd := commons.GetNetworkUsage()
+		//networkDataEnd := commons.GetNetworkUsage()
 
 		elapsed := (end - start) / 1000000 /* nano to milli */
-		receivedBytes := networkDataEnd[0] - networkDataStart[0]
-		transmittedBytes := networkDataEnd[1] - networkDataStart[1]
+		//receivedBytes := networkDataEnd[0] - networkDataStart[0]
+		//transmittedBytes := networkDataEnd[1] - networkDataStart[1]
 
 		counterMtx.Lock()
 		containerPrevCmdMap[containerName] = dockerCmd
@@ -313,8 +313,8 @@ func invokeCommand() {
 
 		resultMap[commons.ENDED_AT] = strconv.FormatInt(end, 10)
 		resultMap[commons.ELAPSED_TIME] = strconv.FormatInt(elapsed, 10)
-		resultMap[commons.RECEIVED_BYTES] = strconv.FormatInt(receivedBytes, 10)
-		resultMap[commons.TRANSMITTED_BYTES] = strconv.FormatInt(transmittedBytes, 10)
+		//resultMap[commons.RECEIVED_BYTES] = strconv.FormatInt(receivedBytes, 10)
+		//resultMap[commons.TRANSMITTED_BYTES] = strconv.FormatInt(transmittedBytes, 10)
 		processResult(resultMap)
 
 		if strings.HasPrefix(execResult, "error") {
