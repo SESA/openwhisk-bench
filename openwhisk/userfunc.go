@@ -20,7 +20,7 @@ func (obj UserFuncs) String() string {
 
 func createUserFuncsObj(contents []string) UserFuncs {
 	if len(contents) != 4 && len(contents) != 5 {
-		panic(fmt.Errorf("Invalid Content Length - %d", len(contents)))
+		panic(fmt.Errorf("Invalid Content Length - %d, %+v", len(contents), contents))
 	}
 
 	userFuncObj := UserFuncs{

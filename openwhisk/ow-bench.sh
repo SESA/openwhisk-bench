@@ -372,7 +372,7 @@ function invokeFunctionWithAuth {
     local user_auth=$1
     shift
 
-    if [ "$1" = "--verbose" ];
+    if [ "$VERBOSE" = "1" ];
     then
         verbosity=1
         shift

@@ -47,6 +47,7 @@ func ExecCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 		usersVsFuncsMap := make(map[string]map[int]struct{})
 
 		for scanner.Scan() {
+			//fmt.Printf("%+v\n", scanner.Text())
 			lineParts := strings.Split(scanner.Text(), ",")
 			userFuncObj := createUserFuncsObj(lineParts)
 			userFuncArr := batchVsUserFuncMap[userFuncObj.Time]
@@ -235,7 +236,7 @@ func doInitialization(needCreation bool, uniqueUsersList map[string]struct{}, us
 				wgTime.Add(1)
 
 				go func(user string, funcName int) {
-					doExecAndParse([]string{"createFunction", user, strconv.Itoa(funcName), "openwhisk/funcs/spin.js"}, 5)
+					doExecAndParse([]string{"createFunction", user, strconv.Itoa(funcName), "functions/trial.js"}, 5)
 
 					wgTime.Done()
 					<-concChan
