@@ -155,9 +155,9 @@ function createUser
 
 	if [ "$status" = "" ]; then
 	    if [ $retVal -eq 0 ]; then
-            status="OK"
+            status=1
         else
-            status="ERROR"
+            status=0
         fi
 	fi
 
@@ -182,7 +182,7 @@ function createFunction
 
     output=`getUserAuth $user_name`
     status=$(echo $output | jq -r '.status')
-    if [ "$status" = "ERROR" ]; then
+    if [ $status = 0 ]; then
         echo ${output}
         return
     fi
@@ -201,10 +201,10 @@ function createFunction
 
     output=$(bash -c "wsk -i --apihost $WSKHOST --auth $user_auth action create --timeout 300000 $action_name $action_func" 2>&1)
     if [ $? -eq 0 ]; then
-	    status="OK"
+	    status=1
 	    output=$action_name
     else
-        status="ERROR"
+        status=0
     fi
 
     output="${output//\"/\'}"
@@ -258,9 +258,9 @@ function updateFunction
 #
 #    output=`${functionToInvoke} $@`
 #    if [ $? -eq 0 ]; then
-#	    status="OK"
+#	    status=1
 #	else
-#	    status="ERROR"
+#	    status=0
 #	fi
 #	echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
 #}
@@ -273,9 +273,9 @@ function getUserAuth {
 
 	output=$(bash -c "wskadmin user get $user" 2>&1)
 	if [ $? -eq 0 ]; then
-	    status="OK"
+	    status=1
 	else
-	    status="ERROR"
+	    status=0
 	fi
 	output="${output//\"/\'}"
 	echo -e "{\"status\":\"$status\", \"output\":\"$output\"}"
@@ -288,11 +288,11 @@ function getInvokeTime
 {
 	output=$(bash -c "wsk -i --apihost $WSKHOST action invoke -b $@" 2>&1)
 	if [ $? -eq 0 ]; then
-	    status="OK"
+	    status=1
 	    output=$(printf '%s' "$output" | tail -n +2)
 	    output=`parseOutput "$output"`
 	else
-	    status="ERROR"
+	    status=0
 	    readarray -t outputLines <<<"$output"
 	    if [[ ${#outputLines[@]} -gt 1 ]] && [[ ${outputLines[0]} =~ ^ok:[[:space:]]invoked[[:space:]].*[[:space:]]with[[:space:]]id[[:space:]][a-z0-9]*$ ]]; then
 		fileName=`date +%s%N | cut -b1-13`
@@ -440,11 +440,11 @@ function invokeAndGetActivationID
     output=$(bash -c "$WSKCLI -i --apihost $WSKHOST action invoke $@" 2>&1)
 
     if [ $? -eq 0 ]; then
-	    status="OK"
+	    status=1
 	    IFS=' ' read -r -a arr <<< "$output"
         output=${arr[${#arr[@]}-1]}
 	else
-	    status="ERROR"
+	    status=0
 	fi
 
     output="${output//\"/\'}"
@@ -471,11 +471,11 @@ function getResultFromActivation
 
     output=$(bash -c "$WSKCLI -i --apihost $WSKHOST -u $user_auth activation get $activation_id" 2>&1)
 	if [ $? -eq 0 ]; then
-	    status="OK"
+	    status=1
 	    output=$(printf '%s' "$output" | tail -n +2)
 	    output=`parseOutput "$output"`
 	else
-	    status="ERROR"
+	    status=0
 	fi
 
     output="${output//\"/\'}"
