@@ -11,7 +11,7 @@
 
 export ICNT=${INVOCATION_CNT:=8192}
 export POW2LIMIT=${POW2_LIMIT:=10}
-export LABEL=${TRIAL_LABEL:=}
+export LABEL=${TRIAL_LABEL:=""}
 export PARAM=${PARAMS:=}
 if [ $# -eq 2 ]; then PARAM="${@}"; fi # Only support two params at the moment
 
@@ -21,7 +21,7 @@ touch $TMPFILE
 for i in $(seq 0 $POW2LIMIT); do 
 	USRS=$((1<<$i))
 	PERUSR=$(($ICNT/$USRS))
-	FILE=${ICNT}_${USRS}u.csv
+	FILE=${LABEL}${ICNT}_${USRS}u.csv
 	touch $FILE
 	echo "Generating $FILE for $USRS users with $PERUSR invocations"
 	for i in $(seq 1 $PERUSR); do 
