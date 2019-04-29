@@ -25,6 +25,7 @@ var Debug bool
 var WriteToFile bool
 var RateLimit float64
 var ConcurrencyFactor int
+var BatchDelay int
 var RunForever = false
 var Verbose = true
 var OutputFileWriter os.File
@@ -153,7 +154,7 @@ func ParseJsonResponse(jsonStr string) (string, string) {
 
 	status := jsonResp["status"].(string)
 	output := jsonResp["output"].(string)
-	if status == "ERROR" && shouldPanic(output) {
+	if status == "0" && shouldPanic(output) {
 		panic(fmt.Errorf("Bash error - %s", output))
 	}
 

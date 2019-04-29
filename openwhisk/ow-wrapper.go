@@ -129,6 +129,9 @@ func ExecCmdsFromFile(inputFilePath string, outputFilePath string, needCreation 
 			commons.PrintToStdOutOnVerbose("------------------------------------------------------------------------")
 			commons.PrintToStdOutOnVerbose("Batch #" + strconv.Itoa(batchOfExecution) + " completed " + strconv.Itoa(batchExecCount) + " executions in " + strconv.FormatFloat(batchElapse.Seconds()*1000, 'f', 0, 64) + "  ms")
 			commons.PrintToStdOutOnVerbose("------------------------------------------------------------------------")
+			if commons.BatchDelay > 0 {
+				time.Sleep(time.Duration(commons.BatchDelay) * time.Millisecond)
+			}
 
 		}
 
